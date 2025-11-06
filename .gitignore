@@ -1,2 +1,5 @@
 output
 __pycache__
+logs
+dist
+src/ocr_automation_tool.egg-info

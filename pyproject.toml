@@ -1,0 +1,58 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ocr-automation-tool"
+version = "1.0.0"
+description = "基于PaddleOCR的游戏自动化工具"
+authors = [
+    {name = "Jian", email = "your.email@example.com"}
+]
+readme = "README.md"
+license = {text = "MIT"}
+keywords = ["ocr", "automation", "paddleocr", "game"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    # "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+]
+requires-python = ">=3.9"
+dependencies = [
+    "opencv-python>=4.8.0",
+    "pyautogui>=0.9.54",
+    "pytesseract>=0.3.10",
+    "pygetwindow>=0.0.9",
+    "pywin32>=306",
+    "paddleocr>=2.7.0",
+    "numpy>=1.21.0",
+    "pillow>=9.0.0",
+    "psutil>=5.9.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "black>=23.0.0",
+    "ruff>=0.0.292",
+    "pytest>=7.0.0",
+    "pre-commit>=3.0.0",
+]
+
+[project.scripts]
+ocr-tool = "src.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/1821454893q/ocr-tool"
+Repository = "https://github.com/1821454893q/ocr-tool"
+"Bug Reports" = "https://github.com/1821454893q/ocr-tool/issues"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.black]
+line-length = 100
+target-version = ['py39']
