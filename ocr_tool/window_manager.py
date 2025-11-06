@@ -186,7 +186,7 @@ class WindowManager:
             return None
 
         try:
-            screenshot = self._capture_bitblt(self._hwnd)
+            screenshot = self.capture_bitblt(self._hwnd)
             if screenshot is not None:
                 logger.debug(f"截图成功，尺寸: {screenshot.shape}")
             else:
@@ -198,7 +198,59 @@ class WindowManager:
             logger.error(f"截图异常: {e}")
             return None
 
-    def _capture_bitblt(self, hwnd) -> Optional[np.ndarray]:
+    def capture_with_printwindow(self) -> Optional[np.ndarray]:
+        """使用PrintWindow截图（更好的兼容性）"""
+        if not self.hwnd or not win32gui.IsWindow(self.hwnd):
+            return None
+
+        try:
+            # 获取窗口尺寸
+            left, top, right, bottom = win32gui.GetWindowRect(self.hwnd)
+            width = right - left
+            height = bottom - top
+
+            # 获取窗口DC
+            window_dc = win32gui.GetWindowDC(self.hwnd)
+            if not window_dc:
+                return None
+
+            try:
+                # 创建兼容DC
+                dc_obj = win32ui.CreateDCFromHandle(window_dc)
+                compatible_dc = dc_obj.CreateCompatibleDC()
+
+                # 创建位图
+                bitmap = win32ui.CreateBitmap()
+                bitmap.CreateCompatibleBitmap(dc_obj, width, height)
+                compatible_dc.SelectObject(bitmap)
+
+                # 使用PrintWindow（关键区别）
+                # PW_RENDERFULLCONTENT = 0x00000002 (Windows 8+)
+                result = win32gui.PrintWindow(self.hwnd, compatible_dc.GetSafeHdc(), 0)
+                # 或者尝试: result = win32gui.PrintWindow(self.hwnd, compatible_dc.GetSafeHdc(), 2)
+
+                if not result:
+                    print("PrintWindow失败，回退到BitBlt")
+                    compatible_dc.BitBlt((0, 0), (width, height), dc_obj, (0, 0), win32con.SRCCOPY)
+
+                # 转换为numpy数组
+                bitmap_bits = bitmap.GetBitmapBits(True)
+                img = np.frombuffer(bitmap_bits, dtype=np.uint8)
+                img.shape = (height, width, 4)
+
+                # 转换为BGR
+                img_bgr = cv2.cvtColor(img, cv2.COLOR_BGRA2BGR)
+
+                return img_bgr
+
+            finally:
+                win32gui.ReleaseDC(self.hwnd, window_dc)
+
+        except Exception as e:
+            print(f"PrintWindow截图失败: {e}")
+            return None
+
+    def capture_bitblt(self, hwnd) -> Optional[np.ndarray]:
         """使用BitBlt进行截图（主要方法）"""
         try:
             # 获取窗口矩形（包括边框和标题栏）
@@ -418,54 +470,85 @@ class WindowManager:
     # ==================== 窗口查找功能 ====================
 
     def list_all_windows(self) -> List[dict]:
-        """列出所有可见窗口（包括子窗口）"""
+        """列出所有窗口（包括系统窗口和隐藏窗口）"""
         try:
             windows = []
+            processed_hwnds = set()
 
-            def enum_proc(hwnd, extra):
-                # 处理子窗口
-                _process_window(hwnd)
-                return True
+            def _process_window(hwnd, is_child=False, parent_hwnd=None):
+                if hwnd in processed_hwnds:
+                    return
+                processed_hwnds.add(hwnd)
 
-            def _process_window(hwnd):
-                """处理单个窗口的通用逻辑"""
-                if win32gui.IsWindowVisible(hwnd):
+                try:
                     title = win32gui.GetWindowText(hwnd)
-                    # 放宽条件，即使标题为空也记录（很多子窗口没有标题）
+                    class_name = win32gui.GetClassName(hwnd)
+
+                    # 获取窗口样式
+                    style = win32gui.GetWindowLong(hwnd, win32con.GWL_STYLE)
+
+                    # 检查窗口是否可见（可选，根据需求调整）
+                    is_visible = win32gui.IsWindowVisible(hwnd)
+
+                    # 过滤条件可以更宽松
+                    if not title and not class_name:
+                        return
+
                     try:
                         rect = win32gui.GetWindowRect(hwnd)
-                        # 获取窗口类名，便于区分不同类型的窗口
-                        class_name = win32gui.GetClassName(hwnd)
+                        width = rect[2] - rect[0]
+                        height = rect[3] - rect[1]
 
-                        # 判断是否为子窗口
-                        parent_hwnd = win32gui.GetParent(hwnd)
-                        is_child = parent_hwnd != 0
+                        # 更宽松的尺寸过滤
+                        if width <= 0 or height <= 0 or width > 10000 or height > 10000:
+                            return
 
-                        windows.append(
-                            {
-                                "hwnd": hwnd,
-                                "title": title,
-                                "position": (rect[0], rect[1]),
-                                "size": (rect[2] - rect[0], rect[3] - rect[1]),
-                                "class_name": class_name,
-                                "is_child": is_child,
-                                "parent_hwnd": parent_hwnd if is_child else None,
-                            }
-                        )
+                    except:
+                        # 如果无法获取位置信息，使用默认值
+                        rect = (0, 0, 0, 0)
+                        width = 0
+                        height = 0
 
-                        # 如果当前窗口有子窗口，递归枚举所有子窗口
-                        if not is_child:  # 只从顶级窗口开始枚举子窗口，避免重复
-                            win32gui.EnumChildWindows(hwnd, enum_proc, None)
+                    if is_child:
+                        actual_parent = parent_hwnd
+                    else:
+                        actual_parent = win32gui.GetParent(hwnd)
+                        is_child = actual_parent != 0
 
-                    except Exception as e:
-                        logger.debug(f"处理窗口 {hwnd} 时出错: {e}")
+                    window_info = {
+                        "hwnd": hwnd,
+                        "title": title,
+                        "position": (rect[0], rect[1]),
+                        "size": (width, height),
+                        "class_name": class_name,
+                        "is_child": is_child,
+                        "parent_hwnd": actual_parent if is_child else None,
+                        "is_visible": is_visible,
+                        "style": style,
+                    }
 
-            # 先枚举所有顶级窗口
-            win32gui.EnumWindows(enum_proc, None)
+                    windows.append(window_info)
 
-            logger.debug(f"找到 {len(windows)} 个可见窗口（包含子窗口）")
+                    # 递归枚举子窗口
+                    def enum_child_proc(child_hwnd, _):
+                        _process_window(child_hwnd, is_child=True, parent_hwnd=hwnd)
+                        return True
 
-            # 可选：按窗口层次结构排序和显示
+                    win32gui.EnumChildWindows(hwnd, enum_child_proc, None)
+
+                except Exception as e:
+                    logger.debug(f"处理窗口 {hwnd} 时出错: {e}")
+
+            # 枚举所有窗口（包括不可见的）
+            def enum_all_windows_proc(hwnd, _):
+                _process_window(hwnd, is_child=False)
+                return True
+
+            win32gui.EnumWindows(enum_all_windows_proc, None)
+
+            logger.debug(f"找到 {len(windows)} 个窗口（包含所有类型）")
+
+            # 按窗口层次结构显示
             self._log_window_hierarchy(windows)
 
             return windows
@@ -475,7 +558,7 @@ class WindowManager:
             return []
 
     def _log_window_hierarchy(self, windows):
-        """记录窗口层次结构（用于调试）"""
+        """记录窗口层次结构（用于调试）- 递归版本（清晰树形）"""
         # 分离顶级窗口和子窗口
         top_level_windows = [w for w in windows if not w["is_child"]]
         child_windows = [w for w in windows if w["is_child"]]
@@ -483,17 +566,30 @@ class WindowManager:
         logger.debug(f"顶级窗口: {len(top_level_windows)} 个")
         logger.debug(f"子窗口: {len(child_windows)} 个")
 
-        # 按父窗口分组显示子窗口
-        for top_win in top_level_windows:
-            children = [w for w in child_windows if w["parent_hwnd"] == top_win["hwnd"]]
-            if children:
-                logger.debug(
-                    f"窗口 '{top_win['title']}' ({top_win['hwnd']}) 有 {len(children)} 个子窗口"
-                )
-                for child in children:
-                    logger.debug(
-                        f"  └─ 子窗口: 类名='{child['class_name']}', 标题='{child['title']}', 句柄={child['hwnd']}"
-                    )
+        def log_window_tree(window, depth=0, is_last=True):
+            """递归记录窗口树"""
+            # 构建树形前缀
+            prefix = ""
+            if depth > 0:
+                prefix = "  " * (depth - 1)
+                prefix += "└─ " if is_last else "├─ "
+
+            logger.debug(
+                f"{prefix}窗口: '{window['title']}' 句柄: {window['hwnd']}, 类名: '{window['class_name']}'"
+            )
+
+            # 查找当前窗口的所有直接子窗口
+            children = [w for w in child_windows if w["parent_hwnd"] == window["hwnd"]]
+
+            for i, child in enumerate(children):
+                log_window_tree(child, depth + 1, i == len(children) - 1)
+
+        # 为每个顶级窗口构建树
+        for i, top_win in enumerate(top_level_windows):
+            logger.debug(f"窗口树 {i + 1}:")
+            log_window_tree(top_win, 0, i == len(top_level_windows) - 1)
+            if i < len(top_level_windows) - 1:
+                logger.debug("")  # 在顶级窗口之间添加空行
 
     def find_window_by_process(self, process_name: str) -> Optional[str]:
         """通过进程名查找窗口"""
