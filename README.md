@@ -5,4 +5,5 @@
 ## 安装
 
 ```bash
+python -m build
 pip install .

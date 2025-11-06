@@ -369,7 +369,7 @@ class WindowManager:
             client_x, client_y = self._screen_to_client(x, y)
             lParam = win32api.MAKELONG(client_x, client_y)
 
-            win32gui.SendMessage(self._hwnd, WM_MOUSEMOVE, 0, lParam)
+            win32gui.SendMessage(self._hwnd, win32con.WM_MOUSEMOVE, 0, lParam)
             logger.debug(f"后台移动鼠标到: ({x}, {y})")
             return True
 
