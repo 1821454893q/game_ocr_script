@@ -1,4 +1,7 @@
-import ocr_tool.window_manager as wm
+from time import sleep
+import time
+from ocr_tool.key_code import KeyCode
+import ocr_tool.providers.win_provider as wm
 import ocr_tool.ocr_engine as ocr
 import cv2
 import win32gui
@@ -25,43 +28,87 @@ def find_unique_values(arr1, arr2):
     }
 
 
-if __name__ == "__main__":
-    tempList = []
-    hander = []
+def login(ocr_engine):
     while True:
-        response = input("回车之后会更新hwnd (输入q退出): ")
-
-        if response.lower() == "q":
+        ocr_engine.click_text("二重")
+        ocr_engine.click_text("登录")
+        ocr_engine.click_text("点击进入游戏")
+        if ocr_engine.exist_text("UID"):
             break
+        sleep(1.0)
 
-        tempList2 = []
-        wList = wm.list_all_windows()
-        for l in wList:
-            tempList2.append(l["hwnd"])
 
-        # 修复：正确接收返回值
-        result = find_unique_values(tempList, tempList2)
+# 进入副本
+def enter_instance(ocr_engine: ocr.OCREngine):
+    while True:
+        if ocr_engine.exist_text("Lv"):
+            ocr_engine.click(74, 34)  # 点击菜单
 
-        print(f"新增窗口句柄: {result['unique_in_arr2']}")
-        print(f"消失窗口句柄: {result['unique_in_arr1']}")
-        print(f"总共变化: {len(result['all_unique'])} 个窗口")
-        print("-" * 50)
-        tempList = tempList2
+        if ocr_engine.exist_text("整备"):
+            # 通过点击进入副本！
+            ocr_engine.click(195, 518)  # 历练
+            sleep(1.0)
+            ocr_engine.click(95, 234)  # 左边副本按钮
+            sleep(1.0)
+            ocr_engine.click(980, 128)  # 夜航手册
+            sleep(1.0)
+            ocr_engine.click(1450, 670)  # 前往
+            sleep(1.0)
+            ocr_engine.click(1300, 840)  # 确认选择
+            sleep(1.0)
+            ocr_engine.click(1390, 775)  # 开始挑战
+            break
+        sleep(1.0)
 
-    hander = [788480, 1115400, 984480, 460706, 655536, 3539122, 460466, 1181110, 2360632, 1051064, 1050680, 787770, 591432, 1901896, 2295752, 199120, 14158048, 918762, 199152, 1377912, 1377480]
-    w = wm.WindowManager("二重螺旋  ", "UnrealWindow")
-    for h in hander:
-        cv = w.capture_bitblt(h)
-        cv2.imshow("title", cv)
-        cv2.waitKey(0)
 
-    # w = wm.WindowManager("MuMu安卓设备", "Qt5156QWindowIcon")
-    # cv = w.capture()
-    # cv2.imshow("title", cv)
-    # cv2.waitKey(0)
-    # cv2.waitKey(0)
+# 重复挑战
+def repeat_instance(ocr_engine: ocr.OCREngine):
+    nowTime = int(time.time())
+    internal = 60  # 60秒
+    text = ""
+    moveY = 800
+    while True:
+        if ocr_engine.click_text("再次进行"):
+            nowTime = int(time.time())
+            sleep(1.0)
 
-    # w = wm.WindowManager("nemudisplay", "nemuwin")
-    # cv = w.capture()
-    # cv2.imshow("title", cv)
-    # cv2.waitKey(0)
+        if ocr_engine.click_text("开始挑战"):
+            nowTime = int(time.time())
+            sleep(1.0)
+
+        result = ocr_engine.find_text("已驱逐敌人")
+        if result:
+            x, y, tempText = result
+            text = tempText
+            print(f"{text} 变化 更新计时")
+            nowTime = int(time.time())
+
+        ocr_engine.swipe(270, 700, 270, moveY)
+        moveY -= 50
+        if moveY < 600:
+            moveY = 800
+
+        # 太久没打完 重新进入副本
+        if int(time.time()) - nowTime > internal:
+            ocr_engine.click(74, 34)  # 点击菜单
+            sleep(1.0)
+            ocr_engine.click(1460, 800)  # 放弃挑战
+            sleep(1.0)
+            ocr_engine.click(980, 520)  # 确定
+            nowTime = int(time.time())
+        sleep(1.0)
+
+
+# 服务器断线重连
+def reconnect(ocr_engine: ocr.OCREngine):
+    if ocr_engine.exist_text("游戏服务器连接断开"):
+        ocr_engine.click_text("重新连接")
+    sleep(1.0)
+
+
+if __name__ == "__main__":
+    # 示例2: 使用ADB提供者
+    adb_path = r"D:\Program Files\Netease\MuMu Player 12\nx_device\12.0\shell\adb.exe"
+    ocr_adb = ocr.OCREngine.create_with_adb(adb_path, "127.0.0.1:16384")
+    repeat_instance(ocr_adb)
+    print("完成")

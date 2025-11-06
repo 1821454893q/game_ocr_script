@@ -11,12 +11,15 @@ import cv2
 import numpy as np
 import time
 
-from .logger import get_logger
+from ocr_tool.interfaces import IDeviceProvider
+from ocr_tool.key_code import KeyCode, get_windows_keycode
+
+from ..logger import get_logger
 
 logger = get_logger()
 
 
-class WindowManager:
+class WinProvider(IDeviceProvider):
     """Windows窗口管理工具 - 包含截图和后台操作"""
 
     def __init__(self, window_title: str = None, class_name: str = None):
@@ -467,6 +470,47 @@ class WindowManager:
             logger.error(f"后台发送文本失败: {e}")
             return False
 
+    def key_event(self, keycode: KeyCode, action: str = "tap") -> bool:
+        """发送按键事件 - 自动转换为Windows键码"""
+        try:
+            if not self.is_available():
+                return False
+
+            # 激活窗口
+            self.activate_window()
+
+            # 转换为Windows键码
+            win_keycode = get_windows_keycode(keycode)
+            key_name = keycode.name
+            if win_keycode == 0:
+                logger.error(f"未知的按键代码: {key_name}")
+                return False
+
+            if action == "tap" or action == "press":
+                # 按下并释放
+                win32api.keybd_event(win_keycode, 0, 0, 0)
+                win32api.Sleep(50)
+                win32api.keybd_event(win_keycode, 0, win32con.KEYEVENTF_KEYUP, 0)
+
+            elif action == "down":
+                # 按下
+                win32api.keybd_event(win_keycode, 0, 0, 0)
+
+            elif action == "up":
+                # 释放
+                win32api.keybd_event(win_keycode, 0, win32con.KEYEVENTF_KEYUP, 0)
+
+            else:
+                logger.error(f"不支持的按键动作: {action}")
+                return False
+
+            logger.debug(f"窗口按键: {action} {key_name}(win:{win_keycode})")
+            return True
+
+        except Exception as e:
+            logger.error(f"窗口按键异常: {e}")
+            return False
+
     # ==================== 窗口查找功能 ====================
 
     def list_all_windows(self) -> List[dict]:
@@ -649,18 +693,18 @@ class WindowManager:
 
 def list_all_windows() -> List[dict]:
     """列出所有窗口的快捷函数"""
-    return WindowManager().list_all_windows()
+    return WinProvider().list_all_windows()
 
 
 def find_window_by_title(title_contains: str) -> List[dict]:
     """通过标题查找窗口的快捷函数"""
-    windows = WindowManager().list_all_windows()
+    windows = WinProvider().list_all_windows()
     return [w for w in windows if title_contains.lower() in w["title"].lower()]
 
 
 def capture_window_by_title(window_title: str) -> Optional[np.ndarray]:
     """通过窗口标题截图的快捷函数"""
-    manager = WindowManager(window_title)
+    manager = WinProvider(window_title)
     return manager.capture()
 
 
@@ -668,42 +712,11 @@ def capture_window_by_title_and_classname(
     window_title: str, class_name: str
 ) -> Optional[np.ndarray]:
     """通过窗口标题截图的快捷函数"""
-    manager = WindowManager(window_title)
+    manager = WinProvider(window_title)
     return manager.capture()
 
 
 def click_window_background(window_title: str, x: int, y: int, button: str = "left") -> bool:
     """通过窗口标题后台点击的快捷函数"""
-    manager = WindowManager(window_title)
+    manager = WinProvider(window_title)
     return manager.click_background(x, y, button)
-
-
-# 常用虚拟键码
-VK_KEYS = {
-    "enter": win32con.VK_RETURN,
-    "tab": win32con.VK_TAB,
-    "space": win32con.VK_SPACE,
-    "escape": win32con.VK_ESCAPE,
-    "backspace": win32con.VK_BACK,
-    "delete": win32con.VK_DELETE,
-    "home": win32con.VK_HOME,
-    "end": win32con.VK_END,
-    "pageup": win32con.VK_PRIOR,
-    "pagedown": win32con.VK_NEXT,
-    "left": win32con.VK_LEFT,
-    "right": win32con.VK_RIGHT,
-    "up": win32con.VK_UP,
-    "down": win32con.VK_DOWN,
-    "f1": win32con.VK_F1,
-    "f2": win32con.VK_F2,
-    "f3": win32con.VK_F3,
-    "f4": win32con.VK_F4,
-    "f5": win32con.VK_F5,
-    "f6": win32con.VK_F6,
-    "f7": win32con.VK_F7,
-    "f8": win32con.VK_F8,
-    "f9": win32con.VK_F9,
-    "f10": win32con.VK_F10,
-    "f11": win32con.VK_F11,
-    "f12": win32con.VK_F12,
-}

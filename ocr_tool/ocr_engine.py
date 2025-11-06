@@ -5,8 +5,12 @@ import cv2
 import numpy as np
 from paddleocr import TextRecognition
 
+from ocr_tool.interfaces import IDeviceProvider
+from ocr_tool.key_code import KeyCode
+from ocr_tool.providers.adb_provider import ADBProvider
+
 from .logger import get_logger
-from .window_manager import WindowManager
+from .providers.win_provider import WinProvider
 from .image_processor import ImageProcessor
 
 logger = get_logger()
@@ -15,11 +19,11 @@ logger = get_logger()
 class OCREngine:
     """OCR引擎 - 专注于OCR逻辑"""
 
-    def __init__(self, window_title: str = None, class_name: str = None):
-        # 窗口操作交给 WindowManager 类
-        self.window_manager = WindowManager(window_title, class_name)
+    def __init__(self, device_provider: IDeviceProvider = None):
+        # 设备提供者
+        self.device = device_provider
 
-        # 图像处理交给 ImageProcessor 类
+        # 图像处理器
         self.image_processor = ImageProcessor()
 
         # 初始化OCR模型
@@ -28,20 +32,29 @@ class OCREngine:
 
         logger.info("OCR引擎初始化完成")
 
-    def set_window(self, window_title: str) -> bool:
-        """设置目标窗口"""
-        return self.window_manager.set_window(window_title)
+    @classmethod
+    def create_with_window(self, window_title: str, class_name: str = None):
+        """创建使用窗口提供者的OCR引擎"""
+        provider = WinProvider(window_title, class_name)
+        return self(provider)
 
-    def get_window_info(self) -> Optional[dict]:
-        """获取窗口信息"""
-        return self.window_manager.get_window_info()
+    @classmethod
+    def create_with_adb(self, adb_path: str, device_id: str = None):
+        """创建使用ADB提供者的OCR引擎"""
+        provider = ADBProvider(adb_path, device_id)
+        return self(provider)
 
-    def activate_window(self) -> bool:
-        """激活窗口"""
-        return self.window_manager.activate_window()
+    def set_device_provider(self, provider: IDeviceProvider):
+        """设置设备提供者"""
+        self.device = provider
+        logger.info(f"设备提供者已设置: {type(provider).__name__}")
+
+    def is_ready(self) -> bool:
+        """检查引擎是否就绪"""
+        return self.device is not None and self.device.is_available()
 
     def find_text(
-        self, target_text: str, confidence: float = 0.8
+        self, target_text: str, confidence: float = 0.5
     ) -> Optional[Tuple[int, int, str]]:
         """查找文本并返回坐标"""
         logger.info(f"开始搜索文本: {target_text}")
@@ -49,8 +62,8 @@ class OCREngine:
         try:
             start_time = time.time()
 
-            # 截图 - 使用 WindowCapture
-            screenshot = self.window_manager.capture()
+            # 使用设备提供者截图
+            screenshot = self.device.capture()
             if screenshot is None:
                 logger.error("截图失败")
                 return None
@@ -100,14 +113,14 @@ class OCREngine:
             return None
 
     def find_text_in_region(
-        self, target_text: str, region: Tuple[int, int, int, int], confidence: float = 0.8
+        self, target_text: str, region: Tuple[int, int, int, int], confidence: float = 0.5
     ) -> Optional[Tuple[int, int, str]]:
         """在指定区域内查找文本"""
         logger.info(f"在区域 {region} 中搜索文本: {target_text}")
 
         try:
             # 截图
-            screenshot = self.window_manager.capture()
+            screenshot = self.device.capture()
             if screenshot is None:
                 return None
 
@@ -160,39 +173,41 @@ class OCREngine:
             logger.error(f"区域OCR处理异常: {e}")
             return None
 
-    def click_text(self, target_text: str, confidence: float = 0.8) -> bool:
+    def click_text(self, target_text: str, confidence: float = 0.5) -> bool:
         """查找并点击文本"""
         result = self.find_text(target_text, confidence)
         if result:
             x, y, text = result
-
-            self.window_manager.click_background(x, y)
-            logger.info(f"🖱️ 已点击: {text} ({x}, {y})")
-            return True
+            success = self.device.click(x, y)
+            if success:
+                logger.info(f"🖱️ 已点击: {text} ({x}, {y})")
+            else:
+                logger.error(f"点击失败: {text} ({x}, {y})")
+            return success
 
         logger.warning(f"点击失败，未找到文本: {target_text}")
         return False
 
-    def exist_text(self, target_text: str, confidence: float = 0.8) -> bool:
-        """查找并点击文本"""
-        result = self.find_text(target_text, confidence)
-        if result:
-            return True
-        return False
+    def click(self, x: int, y: int) -> bool:
+        return self.device.click(x, y)
+
+    def exist_text(self, target_text: str, confidence: float = 0.5) -> bool:
+        """检查文本是否存在"""
+        return self.find_text(target_text, confidence) is not None
 
     def wait_for_text(
-        self, target_text: str, timeout: int = 30, confidence: float = 0.8, interval: float = 1.0
+        self, target_text: str, timeout: int = 30, confidence: float = 0.5, interval: float = 1.0
     ) -> Optional[Tuple[int, int, str]]:
         """等待文本出现"""
         import time
 
-        logger.info(f"等待文本出现: {target_text}，超时: {timeout}秒")
+        logger.debug(f"等待文本出现: {target_text}，超时: {timeout}秒")
 
         start_time = time.time()
         while time.time() - start_time < timeout:
             result = self.find_text(target_text, confidence)
             if result:
-                logger.info("文本已出现")
+                logger.debug("文本已出现")
                 return result
 
             logger.debug(f"文本未出现，等待 {interval} 秒后重试...")
@@ -200,3 +215,54 @@ class OCREngine:
 
         logger.error(f"等待文本超时: {target_text}")
         return None
+
+    def get_device_info(self) -> dict:
+        """获取设备信息"""
+        if self.device:
+            return self.device.get_info()
+        return {}
+
+    def input_text(self, text: str) -> bool:
+        """输入文本"""
+        success = self.device.input_text(text)
+        if success:
+            logger.debug(f"已输入文本: {text}")
+        else:
+            logger.error(f"文本输入失败: {text}")
+        return success
+
+    def key_click(self, key: KeyCode) -> bool:
+        """发送按键事件"""
+        success = self.device.key_event(key, action="tap")
+        if success:
+            logger.debug(f"已发送按键事件: {key.name}")
+        else:
+            logger.error(f"发送按键事件失败: {key.name}")
+        return success
+
+    def key_down(self, key: KeyCode) -> bool:
+        """发送按键事件"""
+        success = self.device.key_event(key, action="down")
+        if success:
+            logger.debug(f"已发送按键事件: {key.name}")
+        else:
+            logger.error(f"发送按键事件失败: {key.name}")
+        return success
+
+    def key_up(self, key: KeyCode) -> bool:
+        """发送按键事件"""
+        success = self.device.key_event(key, action="up")
+        if success:
+            logger.debug(f"已发送按键事件: {key.name}")
+        else:
+            logger.error(f"发送按键事件失败: {key.name}")
+        return success
+
+    def swipe(self, x1: int, y1: int, x2: int, y2: int, duration: int = 500) -> bool:
+        """滑动"""
+        success = self.device.swipe(x1, y1, x2, y2, duration)
+        if success:
+            logger.debug(f"已滑动: ({x1}, {y1}) -> ({x2}, {y2})")
+        else:
+            logger.error(f"滑动失败: ({x1}, {y1}) -> ({x2}, {y2})")
+        return success

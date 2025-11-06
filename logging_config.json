@@ -40,7 +40,7 @@
     },
     "loggers": {
         "app": {
-            "level": "DEBUG",
+            "level": "ERROR",
             "handlers": [
                 "console",
                 "file_debug",
