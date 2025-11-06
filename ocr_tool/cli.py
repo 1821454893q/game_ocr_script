@@ -3,8 +3,8 @@
 
 import argparse
 import time
-from ocr_engine import OCREngine
-from logger import get_logger
+from .ocr_engine import OCREngine
+from .logger import get_logger
 
 logger = get_logger()
 
@@ -22,7 +22,7 @@ def main():
     args = parser.parse_args()
 
     # 创建OCR引擎
-    engine = OCREngine(args.window)
+    engine = OCREngine(args.window, args.classname)
 
     def search_once():
         result = engine.find_text(args.text, args.confidence)
