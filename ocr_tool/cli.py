@@ -3,8 +3,8 @@
 
 import argparse
 import time
-from .ocr_engine import OCREngine
-from .logger import get_logger
+from ocr_engine import OCREngine
+from logger import get_logger
 
 logger = get_logger()
 
@@ -12,6 +12,7 @@ logger = get_logger()
 def main():
     parser = argparse.ArgumentParser(description="OCR自动化工具")
     parser.add_argument("--window", "-w", required=True, help="目标窗口标题")
+    parser.add_argument("--classname", "-wc", required=False, help="要查找的窗口类名")
     parser.add_argument("--text", "-t", required=True, help="要查找的文本")
     parser.add_argument("--click", "-c", action="store_true", help="找到后点击")
     parser.add_argument("--confidence", "-conf", type=float, default=0.8, help="置信度阈值")

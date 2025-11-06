@@ -9,7 +9,7 @@ from typing import Dict, Any
 class SimpleLogger:
     """简单统一的日志工具"""
 
-    def __init__(self, config_file: str = "../conf/logging_config.json"):
+    def __init__(self, config_file: str = "logging_config.json"):
         self.config_file = config_file
         self._ensure_config_file_exists()
         self._setup_logging()
@@ -88,22 +88,6 @@ class SimpleLogger:
                 level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
             )
 
-    def info(self, message: str):
-        """信息级别日志"""
-        self.logger.info(message)
-
-    def debug(self, message: str):
-        """调试级别日志"""
-        self.logger.debug(message)
-
-    def error(self, message: str):
-        """错误级别日志"""
-        self.logger.error(message)
-
-    def warn(self, message: str):
-        """警告级别日志"""
-        self.logger.warning(message)
-
     def update_level(self, new_level: str):
         """更新日志级别"""
         valid_levels = ["DEBUG", "INFO", "WARNING", "ERROR"]
@@ -150,40 +134,25 @@ class SimpleLogger:
 _log_instance = None
 
 
-def get_logger() -> SimpleLogger:
+def get_logger() -> logging.Logger:
     """获取全局日志实例"""
     global _log_instance
     if _log_instance is None:
         _log_instance = SimpleLogger()
-    return _log_instance
-
-
-# 快捷方法
-def info(message: str):
-    """信息级别日志"""
-    get_logger().info(message)
-
-
-def debug(message: str):
-    """调试级别日志"""
-    get_logger().debug(message)
-
-
-def error(message: str):
-    """错误级别日志"""
-    get_logger().error(message)
-
-
-def warn(message: str):
-    """警告级别日志"""
-    get_logger().warn(message)
+    return _log_instance.logger
 
 
 def update_level(new_level: str):
     """更新日志级别"""
-    return get_logger().update_level(new_level)
+    if _log_instance is None:
+        print("日志实例未初始化")
+        return
+    return _log_instance.update_level(new_level)
 
 
 def get_level() -> str:
     """获取当前日志级别"""
-    return get_logger().get_current_level()
+    if _log_instance is None:
+        print("日志实例未初始化")
+        return
+    return _log_instance.get_current_level()

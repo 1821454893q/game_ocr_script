@@ -15,9 +15,9 @@ logger = get_logger()
 class OCREngine:
     """OCR引擎 - 专注于OCR逻辑"""
 
-    def __init__(self, window_title: str = None):
+    def __init__(self, window_title: str = None, class_name: str = None):
         # 窗口操作交给 WindowManager 类
-        self.window_manager = WindowManager(window_title)
+        self.window_manager = WindowManager(window_title, class_name)
 
         # 图像处理交给 ImageProcessor 类
         self.image_processor = ImageProcessor()
@@ -166,11 +166,18 @@ class OCREngine:
         if result:
             x, y, text = result
 
-            WindowManager.click_background(x, y)
+            self.window_manager.click_background(x, y)
             logger.info(f"🖱️ 已点击: {text} ({x}, {y})")
             return True
 
         logger.warning(f"点击失败，未找到文本: {target_text}")
+        return False
+
+    def exist_text(self, target_text: str, confidence: float = 0.8) -> bool:
+        """查找并点击文本"""
+        result = self.find_text(target_text, confidence)
+        if result:
+            return True
         return False
 
     def wait_for_text(

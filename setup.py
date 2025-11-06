@@ -12,8 +12,7 @@ setup(
     description="基于PaddleOCR的游戏自动化工具",
     long_description=long_description,
     long_description_content_type="text/markdown",
-    packages=find_packages(where="src"),
-    package_dir={"": "src"},
+    packages=find_packages(where="ocr-tool"),
     classifiers=[
         "Development Status :: 4 - Beta",
         "Intended Audience :: Developers",

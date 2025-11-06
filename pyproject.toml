@@ -6,11 +6,9 @@ build-backend = "setuptools.build_meta"
 name = "ocr-automation-tool"
 version = "1.0.0"
 description = "基于PaddleOCR的游戏自动化工具"
-authors = [
-    {name = "Jian", email = "your.email@example.com"}
-]
+authors = [{ name = "Jian", email = "your.email@example.com" }]
 readme = "README.md"
-license = {text = "MIT"}
+license = { text = "MIT" }
 keywords = ["ocr", "automation", "paddleocr", "game"]
 classifiers = [
     "Development Status :: 4 - Beta",
@@ -35,15 +33,10 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-dev = [
-    "black>=23.0.0",
-    "ruff>=0.0.292",
-    "pytest>=7.0.0",
-    "pre-commit>=3.0.0",
-]
+dev = ["black>=23.0.0", "ruff>=0.0.292", "pytest>=7.0.0", "pre-commit>=3.0.0"]
 
 [project.scripts]
-ocr-tool = "src.cli:main"
+ocr-tool = "ocr_tool.cli:main"
 
 [project.urls]
 Homepage = "https://github.com/1821454893q/ocr-tool"
@@ -51,7 +44,7 @@ Repository = "https://github.com/1821454893q/ocr-tool"
 "Bug Reports" = "https://github.com/1821454893q/ocr-tool/issues"
 
 [tool.setuptools.packages.find]
-where = ["src"]
+where = ["."] # 在当前目录查找包
 
 [tool.black]
 line-length = 100
