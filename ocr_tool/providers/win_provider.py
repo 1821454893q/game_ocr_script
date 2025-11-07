@@ -107,6 +107,27 @@ class WinProvider(IDeviceProvider):
             logger.error(f"查找窗口失败: {e}")
             return False
 
+    def get_size(self) -> Optional[Tuple[int, int, int, int]]:
+        """获取窗口尺寸和位置
+
+        Returns:
+            Tuple[int, int, int, int]: (width, height, left, top)
+        """
+        if not self.is_available():
+            return None
+
+        try:
+            left, top, right, bottom = win32gui.GetWindowRect(self._hwnd)
+            width = right - left
+            height = bottom - top
+
+            logger.debug(f"窗口尺寸: {width}x{height}, 位置: ({left}, {top})")
+            return width, height, left, top
+
+        except Exception as e:
+            logger.error(f"获取窗口尺寸失败: {e}")
+            return None
+
     # ==================== 窗口管理功能 ====================
 
     def set_window(self, window_title: str) -> bool:

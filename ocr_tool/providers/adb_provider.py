@@ -61,7 +61,7 @@ class ADBProvider(IDeviceProvider):
             logger.error(f"ADB截图异常: {e}")
             return None
 
-    def get_size(self) -> Optional[Tuple[int, int]]:
+    def get_size(self) -> Optional[Tuple[int, int, int, int]]:
         """获取屏幕尺寸"""
         if self._screen_size:
             return self._screen_size
@@ -72,7 +72,8 @@ class ADBProvider(IDeviceProvider):
             if result.returncode == 0:
                 size_str = result.stdout.strip().split(": ")[1]
                 width, height = map(int, size_str.split("x"))
-                self._screen_size = (width, height)
+                # TODO: 获取左上角坐标
+                self._screen_size = (width, height, 0, 0)
                 return self._screen_size
         except:
             pass

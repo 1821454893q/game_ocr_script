@@ -34,6 +34,7 @@ setup(
         "numpy>=1.21.0",
         "pillow>=9.0.0",
         "psutil>=5.9.0",
+        "pynput>=1.8.1"
     ],
     entry_points={
         "console_scripts": [

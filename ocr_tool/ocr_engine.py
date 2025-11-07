@@ -8,6 +8,7 @@ from paddleocr import TextRecognition
 from ocr_tool.interfaces import IDeviceProvider
 from ocr_tool.key_code import KeyCode
 from ocr_tool.providers.adb_provider import ADBProvider
+from ocr_tool.relative_recorder import PynputClickRecorder
 
 from .logger import get_logger
 from .providers.win_provider import WinProvider
@@ -266,3 +267,22 @@ class OCREngine:
         else:
             logger.error(f"滑动失败: ({x1}, {y1}) -> ({x2}, {y2})")
         return success
+
+    def click_relative(self, rel_x: float, rel_y: float):
+        """根据相对坐标点击"""
+        # 获取当前屏幕分辨率
+        width, height = self.device.get_size()
+        if width is None or height is None:
+            width, height = 1920, 1080  # 默认分辨率
+
+        # 转换为绝对坐标
+        x = int(rel_x * width)
+        y = int(rel_y * height)
+
+        logger.info(f"相对坐标 ({rel_x:.3f}, {rel_y:.3f}) -> 绝对坐标 ({x}, {y})")
+        return self.click(x, y)
+
+    def start_relative_recording(self):
+        """开始记录相对坐标"""
+        self.relative_recorder = PynputClickRecorder(self)
+        self.relative_recorder.record_clicks()

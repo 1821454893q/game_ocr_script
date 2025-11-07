@@ -16,8 +16,13 @@ class IScreenshotProvider(ABC):
         pass
 
     @abstractmethod
-    def get_size(self) -> Optional[Tuple[int, int]]:
-        """获取屏幕/窗口尺寸"""
+    def get_size(self) -> Optional[Tuple[int, int, int, int]]:
+        """获取屏幕/窗口尺寸
+
+        Args:
+            Returns:
+                Tuple[int, int, int, int]: (width, height, left, top)
+        """
         pass
 
 

@@ -79,9 +79,10 @@ def repeat_instance(ocr_engine: ocr.OCREngine):
         result = ocr_engine.find_text("已驱逐敌人")
         if result:
             x, y, tempText = result
-            text = tempText
-            print(f"{text} 变化 更新计时")
-            nowTime = int(time.time())
+            if tempText != text:
+                text = tempText
+                print(f"{text} 变化 更新计时")
+                nowTime = int(time.time())
 
         ocr_engine.swipe(270, 700, 270, moveY)
         moveY -= 50
@@ -90,13 +91,18 @@ def repeat_instance(ocr_engine: ocr.OCREngine):
 
         # 太久没打完 重新进入副本
         if int(time.time()) - nowTime > internal:
-            ocr_engine.click(74, 34)  # 点击菜单
-            sleep(1.0)
-            ocr_engine.click(1460, 800)  # 放弃挑战
-            sleep(1.0)
-            ocr_engine.click(980, 520)  # 确定
+            reenter_instance(ocr_engine)
             nowTime = int(time.time())
         sleep(1.0)
+
+
+# 重新进入副本
+def reenter_instance(ocr_engine: ocr.OCREngine):
+    ocr_engine.click(74, 34)  # 点击菜单
+    sleep(1.0)
+    ocr_engine.click(1460, 800)  # 放弃挑战
+    sleep(1.0)
+    ocr_engine.click(980, 520)  # 确定
 
 
 # 服务器断线重连
@@ -110,5 +116,7 @@ if __name__ == "__main__":
     # 示例2: 使用ADB提供者
     adb_path = r"D:\Program Files\Netease\MuMu Player 12\nx_device\12.0\shell\adb.exe"
     ocr_adb = ocr.OCREngine.create_with_adb(adb_path, "127.0.0.1:16384")
-    repeat_instance(ocr_adb)
-    print("完成")
+    # ocr_adb.find_text("测试文本")
+    # reenter_instance(ocr_adb)
+
+    ocr_adb.start_relative_recording()
