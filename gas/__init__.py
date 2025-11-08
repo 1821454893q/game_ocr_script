@@ -5,6 +5,5 @@ __author__ = "Jian"
 
 from .ocr_engine import OCREngine
 from .providers.win_provider import WinProvider
-from .image_processor import ImageProcessor
 
-__all__ = ["OCREngine", "WinProvider", "ImageProcessor"]
+__all__ = ["OCREngine", "WinProvider"]

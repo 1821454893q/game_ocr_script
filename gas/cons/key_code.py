@@ -1,5 +1,6 @@
 # src/keycodes.py
 from enum import Enum
+import win32con
 
 
 class KeyCode(Enum):
@@ -70,6 +71,9 @@ class KeyCode(Enum):
     X = "x"
     Y = "y"
     Z = "z"
+
+    MouseDown = "mouse_left_down"
+    MouseUp = "mouse_left_up"
 
 
 # Android/ADB 按键映射
@@ -151,17 +155,17 @@ WINDOWS_KEY_MAP = {
     KeyCode.TAB: 0x09,  # VK_TAB
     KeyCode.ESCAPE: 0x1B,  # VK_ESCAPE
     KeyCode.CAPS_LOCK: 0x14,  # VK_CAPITAL
-    # 数字键 - 使用字符的ASCII值
-    KeyCode.NUM_0: 0x30,
-    KeyCode.NUM_1: 0x31,
-    KeyCode.NUM_2: 0x32,
-    KeyCode.NUM_3: 0x33,
-    KeyCode.NUM_4: 0x34,
-    KeyCode.NUM_5: 0x35,
-    KeyCode.NUM_6: 0x36,
-    KeyCode.NUM_7: 0x37,
-    KeyCode.NUM_8: 0x38,
-    KeyCode.NUM_9: 0x39,
+    # 数字键
+    KeyCode.NUM_0: win32con.VK_NUMPAD0,
+    KeyCode.NUM_1: win32con.VK_NUMPAD1,
+    KeyCode.NUM_2: win32con.VK_NUMPAD2,
+    KeyCode.NUM_3: win32con.VK_NUMPAD3,
+    KeyCode.NUM_4: win32con.VK_NUMPAD4,
+    KeyCode.NUM_5: win32con.VK_NUMPAD5,
+    KeyCode.NUM_6: win32con.VK_NUMPAD6,
+    KeyCode.NUM_7: win32con.VK_NUMPAD7,
+    KeyCode.NUM_8: win32con.VK_NUMPAD8,
+    KeyCode.NUM_9: win32con.VK_NUMPAD9,
     # 字母键 - 使用字符的ASCII值（大写）
     KeyCode.A: 0x41,
     KeyCode.B: 0x42,

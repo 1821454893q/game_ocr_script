@@ -2,12 +2,12 @@ import cv2
 import numpy as np
 from typing import List, Tuple
 
-from .logger import get_logger
+from ..logger import get_logger
 
 logger = get_logger()
 
 
-class ImageProcessor:
+class ImageUtil:
     """图像处理工具"""
 
     @staticmethod

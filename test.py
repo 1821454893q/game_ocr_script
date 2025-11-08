@@ -1,8 +1,8 @@
 from time import sleep
 import time
-from ocr_tool.key_code import KeyCode
-import ocr_tool.providers.win_provider as wm
-import ocr_tool.ocr_engine as ocr
+from gas.cons.key_code import KeyCode
+import gas.providers.win_provider as wm
+import gas.ocr_engine as ocr
 import cv2
 import win32gui
 
@@ -117,8 +117,8 @@ def reconnect(ocr_engine: ocr.OCREngine):
 
 def test_bitblt():
     hander = [0x0280E44]
-    # w = wm.WinProvider("二重螺旋  ", "UnrealWindow", 2)
-    w = wm.WinProvider("MuMuNxDevice", "Qt5156QWindowIcon", 2)
+    w = wm.WinProvider("二重螺旋  ", "UnrealWindow", 2)
+    # w = wm.WinProvider("MuMuNxDevice", "Qt5156QWindowIcon", 2)
 
     for h in hander:
 
@@ -135,12 +135,11 @@ def test_bitblt():
         # cv2.waitKey(0)
 
         # cv = w.capture()
-        # w.click(680, 670)
-        w.key_event(KeyCode.W, "down")
-        time.sleep(5)
-        w.key_event(KeyCode.W, "up")
+        # cv = w.capture()
         # cv2.imshow("title", cv)
-        cv2.waitKey(0)
+        # cv2.waitKey(0)
+
+        w.click(680, 670)
 
     # tempList = []
     # hander = []
@@ -170,11 +169,20 @@ if __name__ == "__main__":
     # adb_path = r"D:\Program Files\Netease\MuMu Player 12\nx_device\12.0\shell\adb.exe"
     # # ocr_adb = ocr.OCREngine.create_with_adb(adb_path, "127.0.0.1:16366")
     # # ocr_adb = ocr.OCREngine.create_with_window("MuMuNxDevice", "Qt5156QWindowIcon", 2)
-    # ocr_adb = ocr.OCREngine.create_with_window("二重螺旋  ", "UnrealWindow", 2)
-    # # ocr_adb.find_text("测试文本")
+    ocr_adb = ocr.OCREngine.create_with_window("二重螺旋  ", "UnrealWindow", 2)
+    # ocr_adb.click_text("游戏")
+    for i in range(100):
+        # ocr_adb.key_click(KeyCode.SPACE)
+        x1, y1, x2, y2 = 200, 300, 200, 400
+        ocr_adb.mouse_left_down(x1, y1)
+        time.sleep(1)
+        ocr_adb.swipe(x1, y1, x2, y2)
+        time.sleep(1)
+        ocr_adb.mouse_left_up(x2, y2)
+        time.sleep(1)
 
     # # 首次开始 登录 掉线 登录
-    # login(ocr_adb)
+    login(ocr_adb)
     # # 进入副本
     # enter_instance(ocr_adb)
 
@@ -182,6 +190,6 @@ if __name__ == "__main__":
 
     # ocr_adb.start_relative_recording()
 
-    test_bitblt()
+    # test_bitblt()
 
     pass

@@ -5,8 +5,8 @@ import cv2
 import numpy as np
 from typing import Optional, Tuple
 
-from ocr_tool.key_code import KeyCode, get_android_keycode
-from ..interfaces import IDeviceProvider
+from gas.cons.key_code import KeyCode, get_android_keycode
+from ..interfaces.interfaces import IDeviceProvider
 from ..logger import get_logger
 
 logger = get_logger()
@@ -80,7 +80,7 @@ class ADBProvider(IDeviceProvider):
 
         return None
 
-    def click(self, x: int, y: int) -> bool:
+    def click(self, x: int, y: int, action: str = "tap") -> bool:
         """ADB点击"""
         try:
             cmd = self._build_cmd(["shell", "input", "tap", str(x), str(y)])
@@ -98,7 +98,7 @@ class ADBProvider(IDeviceProvider):
             logger.error(f"ADB点击异常: {e}")
             return False
 
-    def swipe(self, x1: int, y1: int, x2: int, y2: int, duration: int = 500) -> bool:
+    def swipe(self, x1: int, y1: int, x2: int, y2: int, duration: float = 0.1) -> bool:
         """ADB滑动"""
         try:
             cmd = self._build_cmd(

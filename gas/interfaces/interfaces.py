@@ -4,7 +4,7 @@ from ctypes import Union
 from typing import Optional, Tuple
 import numpy as np
 
-from ocr_tool.key_code import KeyCode
+from gas.cons.key_code import KeyCode
 
 
 class IScreenshotProvider(ABC):
@@ -30,12 +30,17 @@ class IInputProvider(ABC):
     """输入提供者接口"""
 
     @abstractmethod
-    def click(self, x: int, y: int) -> bool:
-        """点击坐标"""
+    def click(self, x: int, y: int, action: str = "tap") -> bool:
+        """点击坐标
+        Args:
+            x: 点击x坐标
+            y: 点击y坐标
+            action: 动作类型 - "tap"(点击), "down"(按下), "up"(抬起)
+        """
         pass
 
     @abstractmethod
-    def swipe(self, x1: int, y1: int, x2: int, y2: int, duration: int = 500) -> bool:
+    def swipe(self, x1: int, y1: int, x2: int, y2: int, duration: float = 0.1) -> bool:
         """滑动"""
         pass
 

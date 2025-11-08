@@ -5,14 +5,14 @@ import cv2
 import numpy as np
 from paddleocr import TextRecognition
 
-from ocr_tool.interfaces import IDeviceProvider
-from ocr_tool.key_code import KeyCode
-from ocr_tool.providers.adb_provider import ADBProvider
-from ocr_tool.relative_recorder import PynputClickRecorder
+from gas.interfaces.interfaces import IDeviceProvider
+from gas.cons.key_code import KeyCode
+from gas.providers.adb_provider import ADBProvider
+from gas.relative_recorder import PynputClickRecorder
 
 from .logger import get_logger
 from .providers.win_provider import WinProvider
-from .image_processor import ImageProcessor
+from .utils.image_util import ImageUtil
 
 logger = get_logger()
 
@@ -25,7 +25,7 @@ class OCREngine:
         self.device = device_provider
 
         # 图像处理器
-        self.image_processor = ImageProcessor()
+        self.image_processor = ImageUtil()
 
         # 初始化OCR模型
         self.model_det = TextRecognition(model_name="PP-OCRv5_mobile_det")
@@ -39,6 +39,7 @@ class OCREngine:
         provider = WinProvider(window_title, class_name, capture_mode)
 
         return self(provider)
+
     @classmethod
     def create_with_adb(self, adb_path: str, device_id: str = None):
         """创建使用ADB提供者的OCR引擎"""
@@ -192,6 +193,12 @@ class OCREngine:
     def click(self, x: int, y: int) -> bool:
         return self.device.click(x, y)
 
+    def mouse_left_down(self, x: int, y: int) -> bool:
+        return self.device.click(x, y, "down")
+
+    def mouse_left_up(self, x: int, y: int) -> bool:
+        return self.device.click(x, y, "up")
+
     def exist_text(self, target_text: str, confidence: float = 0.5) -> bool:
         """检查文本是否存在"""
         return self.find_text(target_text, confidence) is not None
@@ -259,7 +266,7 @@ class OCREngine:
             logger.error(f"发送按键事件失败: {key.name}")
         return success
 
-    def swipe(self, x1: int, y1: int, x2: int, y2: int, duration: int = 500) -> bool:
+    def swipe(self, x1: int, y1: int, x2: int, y2: int, duration: float = 0.5) -> bool:
         """滑动"""
         success = self.device.swipe(x1, y1, x2, y2, duration)
         if success:
@@ -267,22 +274,3 @@ class OCREngine:
         else:
             logger.error(f"滑动失败: ({x1}, {y1}) -> ({x2}, {y2})")
         return success
-
-    def click_relative(self, rel_x: float, rel_y: float):
-        """根据相对坐标点击"""
-        # 获取当前屏幕分辨率
-        width, height = self.device.get_size()
-        if width is None or height is None:
-            width, height = 1920, 1080  # 默认分辨率
-
-        # 转换为绝对坐标
-        x = int(rel_x * width)
-        y = int(rel_y * height)
-
-        logger.info(f"相对坐标 ({rel_x:.3f}, {rel_y:.3f}) -> 绝对坐标 ({x}, {y})")
-        return self.click(x, y)
-
-    def start_relative_recording(self):
-        """开始记录相对坐标"""
-        self.relative_recorder = PynputClickRecorder(self)
-        self.relative_recorder.record_clicks()

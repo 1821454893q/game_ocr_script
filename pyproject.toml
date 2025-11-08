@@ -3,7 +3,7 @@ requires = ["setuptools>=61.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "ocr-automation-tool"
+name = "game-auth-script"
 version = "1.0.0"
 description = "基于PaddleOCR的游戏自动化工具"
 authors = [{ name = "Jian", email = "your.email@example.com" }]
@@ -20,29 +20,32 @@ classifiers = [
     "Programming Language :: Python :: 3.11",
 ]
 requires-python = ">=3.9"
+
 dependencies = [
-    "opencv-python>=4.8.0",
+    "dxcam>=0.0.5",
+    "opencv_contrib_python>=4.10.0.84",
+    "opencv_python>=4.12.0.88",
+    "paddleocr>=3.3.1",
+    "psutil>=7.1.3",
     "pyautogui>=0.9.54",
-    "pytesseract>=0.3.10",
+    "PyDirectInput>=1.0.4",
     "pygetwindow>=0.0.9",
-    "pywin32>=306",
-    "paddleocr>=2.7.0",
-    "numpy>=1.21.0",
-    "pillow>=9.0.0",
-    "psutil>=5.9.0",
-    "pynput>=1.8.1"
+    "pynput>=1.8.1",
+    "numpy<2.3.0,>=1.21.0",
+    "pywin32>=311",
+    "setuptools>=80.9.0",
 ]
 
 [project.optional-dependencies]
 dev = ["black>=23.0.0", "ruff>=0.0.292", "pytest>=7.0.0", "pre-commit>=3.0.0"]
 
 [project.scripts]
-ocr-tool = "ocr_tool.cli:main"
+gas = "gas.cli:main"
 
 [project.urls]
-Homepage = "https://github.com/1821454893q/ocr-tool"
-Repository = "https://github.com/1821454893q/ocr-tool"
-"Bug Reports" = "https://github.com/1821454893q/ocr-tool/issues"
+Homepage = "https://github.com/1821454893q/gas"
+Repository = "https://github.com/1821454893q/gas"
+"Bug Reports" = "https://github.com/1821454893q/gas/issues"
 
 [tool.setuptools.packages.find]
 where = ["."] # 在当前目录查找包

@@ -1,4 +1,6 @@
 # src/window_capture.py
+import math
+import random
 import pygetwindow as gw
 import win32gui
 import win32ui
@@ -11,8 +13,9 @@ import cv2
 import numpy as np
 import time
 
-from ocr_tool.interfaces import IDeviceProvider
-from ocr_tool.key_code import KeyCode, get_windows_keycode
+from gas.interfaces.interfaces import IDeviceProvider
+from gas.cons.key_code import KeyCode, get_windows_keycode
+from gas.utils.keymouse_util import KeyMouseUtil
 
 from ..logger import get_logger
 
@@ -140,70 +143,23 @@ class WinProvider(IDeviceProvider):
 
     def get_window_info(self) -> Optional[dict]:
         """获取窗口信息"""
-        if not self._window:
+        if not self._hwnd:
             return None
 
         try:
+            x, y, w, h = win32gui.GetWindowRect(self)
+
             info = {
-                "title": self._window.title,
+                "title": self.window_title,
+                "calssName": self.class_name,
                 "hwnd": self._hwnd,
-                "position": (self._window.left, self._window.top),
-                "size": (self._window.width, self._window.height),
-                "is_minimized": self._window.isMinimized,
-                "is_maximized": self._window.isMaximized,
+                "position": (x, y),
+                "size": (w, h),
             }
             return info
         except Exception as e:
             logger.error(f"获取窗口信息失败: {e}")
             return None
-
-    def activate_window(self) -> bool:
-        """激活窗口（前置）"""
-        if not self._window:
-            logger.error("未设置目标窗口")
-            return False
-
-        try:
-            if self._window.isMinimized:
-                self._window.restore()
-
-            self._window.activate()
-            logger.debug("窗口已激活")
-            return True
-
-        except Exception as e:
-            logger.error(f"激活窗口失败: {e}")
-            return False
-
-    def move_window(self, x: int, y: int) -> bool:
-        """移动窗口"""
-        if not self._window:
-            logger.error("未设置目标窗口")
-            return False
-
-        try:
-            self._window.moveTo(x, y)
-            logger.debug(f"窗口已移动到: ({x}, {y})")
-            return True
-
-        except Exception as e:
-            logger.error(f"移动窗口失败: {e}")
-            return False
-
-    def resize_window(self, width: int, height: int) -> bool:
-        """调整窗口大小"""
-        if not self._window:
-            logger.error("未设置目标窗口")
-            return False
-
-        try:
-            self._window.resizeTo(width, height)
-            logger.debug(f"窗口大小已调整为: {width}x{height}")
-            return True
-
-        except Exception as e:
-            logger.error(f"调整窗口大小失败: {e}")
-            return False
 
     # ==================== 截图功能 ====================
 
@@ -345,83 +301,14 @@ class WinProvider(IDeviceProvider):
                 pass
 
     # ==================== 后台鼠标操作 ====================
-    def click_background(
-        self, x: int, y: int, button: str = "left", double_click: bool = False
-    ) -> bool:
-        """后台点击（窗口不需要激活）"""
-        if not self._hwnd:
-            logger.error("未设置目标窗口")
-            return False
-        try:
-            # 准备消息参数
-            lParam = win32api.MAKELONG(x, y)
-
-            if button.lower() == "left":
-                down_msg = win32con.WM_LBUTTONDOWN
-                up_msg = win32con.WM_LBUTTONUP
-                dbl_msg = win32con.WM_LBUTTONDBLCLK
-            elif button.lower() == "right":
-                down_msg = win32con.WM_RBUTTONDOWN
-                up_msg = win32con.WM_RBUTTONUP
-                dbl_msg = win32con.WM_RBUTTONDBLCLK
-            elif button.lower() == "middle":
-                down_msg = win32con.WM_MBUTTONDOWN
-                up_msg = win32con.WM_MBUTTONUP
-                dbl_msg = None
-            else:
-                logger.error(f"不支持的按钮类型: {button}")
-                return False
-
-            # 使用 PostMessage 而不是 SendMessage（避免激活窗口）
-            if double_click and dbl_msg:
-                # 双击：直接发送双击消息
-                win32gui.PostMessage(self._hwnd, down_msg, 0, lParam)
-                win32gui.PostMessage(self._hwnd, up_msg, 0, lParam)
-            else:
-                # 单击：按下和释放
-                win32gui.SendMessage(self._hwnd, down_msg, 0, lParam)
-                time.sleep(0.05)
-                win32gui.SendMessage(self._hwnd, up_msg, 0, lParam)
-
-            logger.debug(f"后台点击: ({x}, {y}), 按钮: {button}, 双击: {double_click}")
-            return True
-
-        except Exception as e:
-            logger.error(f"后台点击失败: {e}")
-            return False
-
-    def click_relative(
-        self, rel_x: int, rel_y: int, button: str = "left", double_click: bool = False
-    ) -> bool:
-        """相对窗口位置的点击"""
+    def move_mouse(self, x: int, y: int) -> bool:
+        """移动鼠标"""
         if not self._hwnd:
             logger.error("未设置目标窗口")
             return False
 
         try:
-            # 获取窗口位置
-            window_rect = win32gui.GetWindowRect(self._hwnd)
-
-            # 计算绝对坐标
-            abs_x = window_rect[0] + rel_x
-            abs_y = window_rect[1] + rel_y
-
-            return self.click_background(abs_x, abs_y, button, double_click)
-
-        except Exception as e:
-            logger.error(f"相对点击失败: {e}")
-            return False
-
-    def move_mouse_background(self, x: int, y: int) -> bool:
-        """后台移动鼠标"""
-        if not self._hwnd:
-            logger.error("未设置目标窗口")
-            return False
-
-        try:
-            lParam = win32api.MAKELONG(x, y)
-
-            win32gui.SendMessage(self._hwnd, win32con.WM_MOUSEMOVE, 0, lParam)
+            KeyMouseUtil.mouse_move(x, y)
             logger.debug(f"后台移动鼠标到: ({x}, {y})")
             return True
 
@@ -429,53 +316,13 @@ class WinProvider(IDeviceProvider):
             logger.error(f"后台移动鼠标失败: {e}")
             return False
 
-    def send_key_background(self, virtual_key: int, key_down: bool = True) -> bool:
-        """后台发送按键"""
-        if not self._hwnd:
-            logger.error("未设置目标窗口")
-            return False
-
-        try:
-            if key_down:
-                message = win32con.WM_KEYDOWN
-            else:
-                message = win32con.WM_KEYUP
-
-            win32gui.SendMessage(self._hwnd, message, virtual_key, 0)
-            logger.debug(f"后台发送按键: {virtual_key}, 按下: {key_down}")
-            return True
-
-        except Exception as e:
-            logger.error(f"后台发送按键失败: {e}")
-            return False
-
-    def send_text_background(self, text: str) -> bool:
-        """后台发送文本"""
-        if not self._hwnd:
-            logger.error("未设置目标窗口")
-            return False
-
-        try:
-            for char in text:
-                win32gui.SendMessage(self._hwnd, win32con.WM_CHAR, ord(char), 0)
-                time.sleep(0.01)  # 短暂延迟
-
-            logger.debug(f"后台发送文本: {text}")
-            return True
-
-        except Exception as e:
-            logger.error(f"后台发送文本失败: {e}")
-            return False
-
     def key_event(self, keycode: KeyCode, action: str = "tap") -> bool:
         """发送按键事件 - 自动转换为Windows键码"""
         try:
             if not self.is_available():
                 return False
-
             # 激活窗口
-            self.activate_window()
-
+            KeyMouseUtil.window_activate(self._hwnd)
             # 转换为Windows键码
             win_keycode = get_windows_keycode(keycode)
             key_name = keycode.name
@@ -485,28 +332,73 @@ class WinProvider(IDeviceProvider):
 
             if action == "tap" or action == "press":
                 # 按下并释放
-                win32api.keybd_event(win_keycode, 0, 0, 0)
-                win32api.Sleep(50)
-                win32api.keybd_event(win_keycode, 0, win32con.KEYEVENTF_KEYUP, 0)
-
+                KeyMouseUtil.tap_key(self._hwnd, win_keycode)
             elif action == "down":
                 # 按下
-                win32api.keybd_event(win_keycode, 0, 0, 0)
-
+                KeyMouseUtil.key_down(self._hwnd, win_keycode)
             elif action == "up":
                 # 释放
-                win32api.keybd_event(win_keycode, 0, win32con.KEYEVENTF_KEYUP, 0)
-
+                KeyMouseUtil.key_up(self._hwnd, win_keycode)
             else:
                 logger.error(f"不支持的按键动作: {action}")
                 return False
-
             logger.debug(f"窗口按键: {action} {key_name}(win:{win_keycode})")
             return True
-
         except Exception as e:
             logger.error(f"窗口按键异常: {e}")
             return False
+
+    def click(self, x: int, y: int, action: str = "tap") -> bool:
+        if action == "tap":
+            logger.debug(f"鼠标点击 ({x},{y})")
+            return KeyMouseUtil.click(self._hwnd, x, y) is None
+
+        if action == "down":
+            return KeyMouseUtil.mouse_left_down(self._hwnd, x, y) is None
+
+        if action == "up":
+            return KeyMouseUtil.mouse_left_up(self._hwnd, x, y) is None
+
+    def swipe(self, x1: int, y1: int, x2: int, y2: int, duration: float = 0.1) -> bool:
+        """简化版本的滑动（直线+随机波动）"""
+        distance = math.sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2)
+
+        num_points = max(3, int(distance / 15))
+
+        try:
+            KeyMouseUtil.mouse_move(self._hwnd, x1, y1)
+            time.sleep(0.03)
+
+            for i in range(num_points):
+                t = i / (num_points - 1)
+                # 线性插值 + 随机波动
+                x = x1 + (x2 - x1) * t + random.randint(-3, 3)
+                y = y1 + (y2 - y1) * t + random.randint(-3, 3)
+
+                KeyMouseUtil.mouse_move(self._hwnd, int(x), int(y))
+                time.sleep(duration / num_points * random.uniform(0.9, 1.1))
+
+            KeyMouseUtil.mouse_move(self._hwnd, x2, y2)
+            return True
+
+        except Exception as e:
+            print(f"滑动失败: {e}")
+            return False
+
+        except Exception as e:
+            print(f"滑动操作失败: {e}")
+            return False
+
+    def input_text(self, text: str) -> bool:
+        """输入文本"""
+        pass
+
+    def is_available(self) -> bool:
+        return True
+
+    def get_info(self) -> dict:
+        """获取设备信息"""
+        pass
 
     # ==================== 窗口查找功能 ====================
 
@@ -683,56 +575,3 @@ class WinProvider(IDeviceProvider):
 
         logger.error(f"等待窗口超时: {self.window_title}")
         return False
-
-    def click(self, x: int, y: int) -> bool:
-        return self.click_background(x, y)
-
-    def swipe(self, x1: int, y1: int, x2: int, y2: int, duration: int = 500) -> bool:
-        """滑动"""
-        pass
-
-    def input_text(self, text: str) -> bool:
-        """输入文本"""
-        pass
-
-    def is_available(self) -> bool:
-        """检查是否可用"""
-        pass
-
-    def get_info(self) -> dict:
-        """获取设备信息"""
-        pass
-
-
-# ==================== 快捷函数 ====================
-
-
-def list_all_windows() -> List[dict]:
-    """列出所有窗口的快捷函数"""
-    return WinProvider().list_all_windows()
-
-
-def find_window_by_title(title_contains: str) -> List[dict]:
-    """通过标题查找窗口的快捷函数"""
-    windows = WinProvider().list_all_windows()
-    return [w for w in windows if title_contains.lower() in w["title"].lower()]
-
-
-def capture_window_by_title(window_title: str) -> Optional[np.ndarray]:
-    """通过窗口标题截图的快捷函数"""
-    manager = WinProvider(window_title)
-    return manager.capture()
-
-
-def capture_window_by_title_and_classname(
-    window_title: str, class_name: str
-) -> Optional[np.ndarray]:
-    """通过窗口标题截图的快捷函数"""
-    manager = WinProvider(window_title)
-    return manager.capture()
-
-
-def click_window_background(window_title: str, x: int, y: int, button: str = "left") -> bool:
-    """通过窗口标题后台点击的快捷函数"""
-    manager = WinProvider(window_title)
-    return manager.click_background(x, y, button)

@@ -5,14 +5,14 @@ with open("README.md", "r", encoding="utf-8") as fh:
     long_description = fh.read()
 
 setup(
-    name="ocr-automation-tool",
+    name="game-auth-script",
     version="1.0.0",
     author="Jian",
     author_email="your.email@example.com",
     description="基于PaddleOCR的游戏自动化工具",
     long_description=long_description,
     long_description_content_type="text/markdown",
-    packages=find_packages(where="ocr-tool"),
+    packages=find_packages(where="gas"),
     classifiers=[
         "Development Status :: 4 - Beta",
         "Intended Audience :: Developers",
@@ -31,14 +31,13 @@ setup(
         "pygetwindow>=0.0.9",
         "pywin32>=306",
         "paddleocr>=2.7.0",
-        "numpy>=1.21.0",
         "pillow>=9.0.0",
         "psutil>=5.9.0",
-        "pynput>=1.8.1"
+        "pynput>=1.8.1",
     ],
     entry_points={
         "console_scripts": [
-            "ocr-tool=src.cli:main",
+            "gas=gas.cli:main",
         ],
     },
     include_package_data=True,

@@ -30,9 +30,16 @@
             "filename": "logs/info.log",
             "encoding": "utf-8"
         },
+        "file_warn": {
+            "class": "logging.FileHandler",
+            "level": "WARN",
+            "formatter": "detailed",
+            "filename": "logs/warn.log",
+            "encoding": "utf-8"
+        },
         "file_error": {
             "class": "logging.FileHandler",
-            "level": "WARNING",
+            "level": "ERROR",
             "formatter": "detailed",
             "filename": "logs/error.log",
             "encoding": "utf-8"
@@ -44,6 +51,7 @@
             "handlers": [
                 "console",
                 "file_debug",
+                "file_warn",
                 "file_info",
                 "file_error"
             ],
