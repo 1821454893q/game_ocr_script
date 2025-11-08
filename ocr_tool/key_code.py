@@ -200,3 +200,69 @@ def get_android_keycode(key: KeyCode) -> int:
 def get_windows_keycode(key: KeyCode) -> int:
     """获取Windows对应的虚拟键代码"""
     return WINDOWS_KEY_MAP.get(key, 0)
+
+
+# pydirectinput 键名映射（直接使用字符串键名）
+PYDIRECTINPUT_KEY_MAP = {
+    KeyCode.HOME: "home",
+    KeyCode.BACK: "backspace",  # pydirectinput中没有back，使用backspace
+    KeyCode.MENU: "alt",
+    KeyCode.POWER: "win",
+    KeyCode.DPAD_UP: "up",
+    KeyCode.DPAD_DOWN: "down",
+    KeyCode.DPAD_LEFT: "left",
+    KeyCode.DPAD_RIGHT: "right",
+    KeyCode.DPAD_CENTER: "enter",
+    KeyCode.VOLUME_UP: "volumeup",
+    KeyCode.VOLUME_DOWN: "volumedown",
+    KeyCode.VOLUME_MUTE: "volumemute",
+    KeyCode.ENTER: "enter",
+    KeyCode.DELETE: "delete",
+    KeyCode.SPACE: "space",
+    KeyCode.TAB: "tab",
+    KeyCode.ESCAPE: "escape",
+    KeyCode.CAPS_LOCK: "capslock",
+    # 数字键
+    KeyCode.NUM_0: "0",
+    KeyCode.NUM_1: "1",
+    KeyCode.NUM_2: "2",
+    KeyCode.NUM_3: "3",
+    KeyCode.NUM_4: "4",
+    KeyCode.NUM_5: "5",
+    KeyCode.NUM_6: "6",
+    KeyCode.NUM_7: "7",
+    KeyCode.NUM_8: "8",
+    KeyCode.NUM_9: "9",
+    # 字母键
+    KeyCode.A: "a",
+    KeyCode.B: "b",
+    KeyCode.C: "c",
+    KeyCode.D: "d",
+    KeyCode.E: "e",
+    KeyCode.F: "f",
+    KeyCode.G: "g",
+    KeyCode.H: "h",
+    KeyCode.I: "i",
+    KeyCode.J: "j",
+    KeyCode.K: "k",
+    KeyCode.L: "l",
+    KeyCode.M: "m",
+    KeyCode.N: "n",
+    KeyCode.O: "o",
+    KeyCode.P: "p",
+    KeyCode.Q: "q",
+    KeyCode.R: "r",
+    KeyCode.S: "s",
+    KeyCode.T: "t",
+    KeyCode.U: "u",
+    KeyCode.V: "v",
+    KeyCode.W: "w",
+    KeyCode.X: "x",
+    KeyCode.Y: "y",
+    KeyCode.Z: "z",
+}
+
+
+def get_pydirectinput_keyname(key: KeyCode) -> str:
+    """获取pydirectinput对应的键名"""
+    return PYDIRECTINPUT_KEY_MAP.get(key, "")

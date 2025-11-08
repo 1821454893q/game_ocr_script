@@ -31,8 +31,11 @@ def find_unique_values(arr1, arr2):
 def login(ocr_engine):
     while True:
         ocr_engine.click_text("二重")
+        sleep(1.0)
         ocr_engine.click_text("登录")
+        sleep(1.0)
         ocr_engine.click_text("点击进入游戏")
+        sleep(1.0)
         if ocr_engine.exist_text("UID"):
             break
         sleep(1.0)
@@ -112,11 +115,73 @@ def reconnect(ocr_engine: ocr.OCREngine):
     sleep(1.0)
 
 
+def test_bitblt():
+    hander = [0x0280E44]
+    # w = wm.WinProvider("二重螺旋  ", "UnrealWindow", 2)
+    w = wm.WinProvider("MuMuNxDevice", "Qt5156QWindowIcon", 2)
+
+    for h in hander:
+
+        # cn = win32gui.GetClassName(h)
+        # t = win32gui.GetWindowText(h)
+        # print(f"title {t} calssname {cn}")
+
+        # cv = w.capture_print_window(h)
+        # cv2.imshow("title", cv)
+        # cv2.waitKey(0)
+
+        # cv = w.capture_bitblt(h)
+        # cv2.imshow("title", cv)
+        # cv2.waitKey(0)
+
+        # cv = w.capture()
+        # w.click(680, 670)
+        w.key_event(KeyCode.W, "down")
+        time.sleep(5)
+        w.key_event(KeyCode.W, "up")
+        # cv2.imshow("title", cv)
+        cv2.waitKey(0)
+
+    # tempList = []
+    # hander = []
+    # while True:
+    #     response = input("回车之后会更新hwnd (输入q退出): ")
+
+    #     if response.lower() == "q":
+    #         break
+
+    #     tempList2 = []
+    #     wList = wm.list_all_windows()
+    #     for l in wList:
+    #         tempList2.append(l["hwnd"])
+
+    #     # 修复：正确接收返回值
+    #     result = find_unique_values(tempList, tempList2)
+
+    #     print(f"新增窗口句柄: {result['unique_in_arr2']}")
+    #     print(f"消失窗口句柄: {result['unique_in_arr1']}")
+    #     print(f"总共变化: {len(result['all_unique'])} 个窗口")
+    #     print("-" * 50)
+    #     tempList = tempList2
+
+
 if __name__ == "__main__":
-    # 示例2: 使用ADB提供者
-    adb_path = r"D:\Program Files\Netease\MuMu Player 12\nx_device\12.0\shell\adb.exe"
-    ocr_adb = ocr.OCREngine.create_with_adb(adb_path, "127.0.0.1:16384")
-    # ocr_adb.find_text("测试文本")
+    # # 示例2: 使用ADB提供者
+    # adb_path = r"D:\Program Files\Netease\MuMu Player 12\nx_device\12.0\shell\adb.exe"
+    # # ocr_adb = ocr.OCREngine.create_with_adb(adb_path, "127.0.0.1:16366")
+    # # ocr_adb = ocr.OCREngine.create_with_window("MuMuNxDevice", "Qt5156QWindowIcon", 2)
+    # ocr_adb = ocr.OCREngine.create_with_window("二重螺旋  ", "UnrealWindow", 2)
+    # # ocr_adb.find_text("测试文本")
+
+    # # 首次开始 登录 掉线 登录
+    # login(ocr_adb)
+    # # 进入副本
+    # enter_instance(ocr_adb)
+
     # reenter_instance(ocr_adb)
 
-    ocr_adb.start_relative_recording()
+    # ocr_adb.start_relative_recording()
+
+    test_bitblt()
+
+    pass

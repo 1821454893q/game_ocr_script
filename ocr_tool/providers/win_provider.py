@@ -5,7 +5,7 @@ import win32ui
 import win32con
 import win32api
 import ctypes
-from ctypes import wintypes
+from ctypes import windll, wintypes
 from typing import Optional, Tuple, List, Union
 import cv2
 import numpy as np
@@ -18,15 +18,19 @@ from ..logger import get_logger
 
 logger = get_logger()
 
+# 使用 PrintWindow 前置条件
+windll.user32.SetProcessDPIAware()
+
 
 class WinProvider(IDeviceProvider):
     """Windows窗口管理工具 - 包含截图和后台操作"""
 
-    def __init__(self, window_title: str = None, class_name: str = None):
+    def __init__(self, window_title: str = None, class_name: str = None, capture_mode: int = 1):
         self.window_title = window_title
         self.class_name = class_name
         self._hwnd = None
         self._window = None
+        self._capture_mode = capture_mode
 
         if window_title:
             self._find_and_set_hwnd(window_title, class_name)
@@ -210,7 +214,11 @@ class WinProvider(IDeviceProvider):
             return None
 
         try:
-            screenshot = self.capture_bitblt(self._hwnd)
+            if self._capture_mode == 1:
+                screenshot = self.capture_bitblt(self._hwnd)
+            elif self._capture_mode == 2:
+                screenshot = self.capture_print_window(self._hwnd)
+
             if screenshot is not None:
                 logger.debug(f"截图成功，尺寸: {screenshot.shape}")
             else:
@@ -220,58 +228,6 @@ class WinProvider(IDeviceProvider):
 
         except Exception as e:
             logger.error(f"截图异常: {e}")
-            return None
-
-    def capture_with_printwindow(self) -> Optional[np.ndarray]:
-        """使用PrintWindow截图（更好的兼容性）"""
-        if not self.hwnd or not win32gui.IsWindow(self.hwnd):
-            return None
-
-        try:
-            # 获取窗口尺寸
-            left, top, right, bottom = win32gui.GetWindowRect(self.hwnd)
-            width = right - left
-            height = bottom - top
-
-            # 获取窗口DC
-            window_dc = win32gui.GetWindowDC(self.hwnd)
-            if not window_dc:
-                return None
-
-            try:
-                # 创建兼容DC
-                dc_obj = win32ui.CreateDCFromHandle(window_dc)
-                compatible_dc = dc_obj.CreateCompatibleDC()
-
-                # 创建位图
-                bitmap = win32ui.CreateBitmap()
-                bitmap.CreateCompatibleBitmap(dc_obj, width, height)
-                compatible_dc.SelectObject(bitmap)
-
-                # 使用PrintWindow（关键区别）
-                # PW_RENDERFULLCONTENT = 0x00000002 (Windows 8+)
-                result = win32gui.PrintWindow(self.hwnd, compatible_dc.GetSafeHdc(), 0)
-                # 或者尝试: result = win32gui.PrintWindow(self.hwnd, compatible_dc.GetSafeHdc(), 2)
-
-                if not result:
-                    print("PrintWindow失败，回退到BitBlt")
-                    compatible_dc.BitBlt((0, 0), (width, height), dc_obj, (0, 0), win32con.SRCCOPY)
-
-                # 转换为numpy数组
-                bitmap_bits = bitmap.GetBitmapBits(True)
-                img = np.frombuffer(bitmap_bits, dtype=np.uint8)
-                img.shape = (height, width, 4)
-
-                # 转换为BGR
-                img_bgr = cv2.cvtColor(img, cv2.COLOR_BGRA2BGR)
-
-                return img_bgr
-
-            finally:
-                win32gui.ReleaseDC(self.hwnd, window_dc)
-
-        except Exception as e:
-            print(f"PrintWindow截图失败: {e}")
             return None
 
     def capture_bitblt(self, hwnd) -> Optional[np.ndarray]:
@@ -329,43 +285,66 @@ class WinProvider(IDeviceProvider):
         finally:
             # 清理资源
             try:
-                if "saveBitMap" in locals():
-                    win32gui.DeleteObject(saveBitMap.GetHandle())
-                if "saveDC" in locals():
-                    saveDC.DeleteDC()
-                if "mfcDC" in locals():
-                    mfcDC.DeleteDC()
-                if "hwndDC" in locals():
-                    win32gui.ReleaseDC(hwnd, hwndDC)
+                win32gui.DeleteObject(saveBitMap.GetHandle())
+                saveDC.DeleteDC()
+                mfcDC.DeleteDC()
+                win32gui.ReleaseDC(hwnd, hwndDC)
             except:
                 pass
 
-    # ==================== 后台鼠标操作 ====================
-
-    def _screen_to_client(self, screen_x: int, screen_y: int) -> Tuple[int, int]:
-        """屏幕坐标转换为窗口客户区坐标"""
-        if not self._hwnd:
-            return screen_x, screen_y
-
+    def capture_print_window(self, hwnd) -> Optional[np.ndarray]:
+        """使用PrintWindow进行截图"""
         try:
-            # 获取窗口位置
-            window_rect = win32gui.GetWindowRect(self._hwnd)
-            client_rect = win32gui.GetClientRect(self._hwnd)
+            # 获取窗口矩形（包括边框和标题栏）
+            left, top, right, bottom = win32gui.GetWindowRect(hwnd)
+            width = right - left
+            height = bottom - top
 
-            # 计算边框和标题栏大小
-            border_width = (window_rect[2] - window_rect[0] - client_rect[2]) // 2
-            title_bar_height = window_rect[3] - window_rect[1] - client_rect[3] - border_width * 2
+            if width <= 0 or height <= 0:
+                logger.error("窗口大小无效")
+                return None
 
-            # 转换为客户区坐标
-            client_x = screen_x - window_rect[0] - border_width
-            client_y = screen_y - window_rect[1] - title_bar_height - border_width
+            # 创建设备上下文
+            hwndDC = win32gui.GetWindowDC(hwnd)
+            mfcDC = win32ui.CreateDCFromHandle(hwndDC)
+            saveDC = mfcDC.CreateCompatibleDC()
 
-            return client_x, client_y
+            # 创建位图对象
+            saveBitMap = win32ui.CreateBitmap()
+            saveBitMap.CreateCompatibleBitmap(mfcDC, width, height)
+            saveDC.SelectObject(saveBitMap)
+
+            # 使用PrintWindow拷贝屏幕内容
+            windll.user32.PrintWindow(hwnd, saveDC.GetSafeHdc(), 3)
+
+            # 获取位图数据
+            bmpstr = saveBitMap.GetBitmapBits(True)
+
+            # 转换为numpy数组
+            img = np.frombuffer(bmpstr, dtype="uint8")
+            img.shape = (height, width, 4)  # BGRA格式
+
+            # 转换为BGR（OpenCV格式）
+            img_bgr = cv2.cvtColor(img, cv2.COLOR_BGRA2BGR)
+
+            logger.debug(f"PrintWindow截图成功: {width}x{height}")
+            return img_bgr
 
         except Exception as e:
-            logger.error(f"坐标转换失败: {e}")
-            return screen_x, screen_y
+            logger.error(f"PrintWindow截图失败: {e}")
+            return None
+        finally:
+            # 清理资源
+            try:
+                win32gui.DeleteObject(saveBitMap.GetHandle())
+                saveDC.DeleteDC()
+                mfcDC.DeleteDC()
+                win32gui.ReleaseDC(hwnd, hwndDC)
+            except Exception as e:
+                logger.error(e)
+                pass
 
+    # ==================== 后台鼠标操作 ====================
     def click_background(
         self, x: int, y: int, button: str = "left", double_click: bool = False
     ) -> bool:
@@ -373,9 +352,7 @@ class WinProvider(IDeviceProvider):
         if not self._hwnd:
             logger.error("未设置目标窗口")
             return False
-
         try:
-
             # 准备消息参数
             lParam = win32api.MAKELONG(x, y)
 
@@ -442,8 +419,7 @@ class WinProvider(IDeviceProvider):
             return False
 
         try:
-            client_x, client_y = self._screen_to_client(x, y)
-            lParam = win32api.MAKELONG(client_x, client_y)
+            lParam = win32api.MAKELONG(x, y)
 
             win32gui.SendMessage(self._hwnd, win32con.WM_MOUSEMOVE, 0, lParam)
             logger.debug(f"后台移动鼠标到: ({x}, {y})")
@@ -707,6 +683,25 @@ class WinProvider(IDeviceProvider):
 
         logger.error(f"等待窗口超时: {self.window_title}")
         return False
+
+    def click(self, x: int, y: int) -> bool:
+        return self.click_background(x, y)
+
+    def swipe(self, x1: int, y1: int, x2: int, y2: int, duration: int = 500) -> bool:
+        """滑动"""
+        pass
+
+    def input_text(self, text: str) -> bool:
+        """输入文本"""
+        pass
+
+    def is_available(self) -> bool:
+        """检查是否可用"""
+        pass
+
+    def get_info(self) -> dict:
+        """获取设备信息"""
+        pass
 
 
 # ==================== 快捷函数 ====================
