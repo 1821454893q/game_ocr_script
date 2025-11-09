@@ -5,7 +5,7 @@ with open("README.md", "r", encoding="utf-8") as fh:
     long_description = fh.read()
 
 setup(
-    name="game-auth-script",
+    name="gas",
     version="1.0.0",
     author="Jian",
     author_email="your.email@example.com",

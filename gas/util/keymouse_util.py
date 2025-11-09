@@ -1,4 +1,3 @@
-import logging
 import random
 import time
 
@@ -93,9 +92,63 @@ class KeyMouseUtil:
 
     @classmethod
     def mouse_move(self, hwnd, x: int | float, y: int | float, seconds: float = 0.0):
+        KeyMouseUtil.window_activate(hwnd)
         lParam = win32api.MAKELONG(x, y)
         win32gui.SendMessage(hwnd, win32con.WM_MOUSEMOVE, 0, lParam)
         self.__sleep(seconds)
+
+    @classmethod
+    def mouse_action(
+        cls, hwnd, x: int | float, y: int | float, action_type: str = "move", seconds: float = 0.0
+    ) -> bool:
+        """
+        统一的鼠标动作方法
+
+        Args:
+            hwnd: 窗口句柄
+            x: x坐标
+            y: y坐标
+            action_type: 动作类型
+                - "move": 仅移动鼠标
+                - "tap": 点击
+                - "down": 按下左键
+                - "up": 松开左键
+                - "drag": 拖拽（需要保持左键按下状态移动）
+            seconds: 延迟时间
+        """
+        try:
+            x = int(x)
+            y = int(y)
+            l_param = win32api.MAKELONG(x, y)
+
+            if action_type == "move":
+                # 普通移动
+                win32gui.SendMessage(hwnd, win32con.WM_MOUSEMOVE, 0, l_param)
+
+            elif action_type == "tap":
+                # 点击
+                win32gui.PostMessage(hwnd, win32con.WM_LBUTTONDOWN, win32con.MK_LBUTTON, l_param)
+                cls.__sleep(0.05)
+                win32gui.PostMessage(hwnd, win32con.WM_LBUTTONUP, 0, l_param)
+
+            elif action_type == "down":
+                # 按下左键
+                win32gui.PostMessage(hwnd, win32con.WM_LBUTTONDOWN, win32con.MK_LBUTTON, l_param)
+
+            elif action_type == "up":
+                # 松开左键
+                win32gui.PostMessage(hwnd, win32con.WM_LBUTTONUP, 0, l_param)
+
+            elif action_type == "drag":
+                # 拖拽（移动时保持左键按下）
+                win32gui.SendMessage(hwnd, win32con.WM_MOUSEMOVE, win32con.MK_LBUTTON, l_param)
+
+            cls.__sleep(seconds)
+            return True
+
+        except Exception as e:
+            print(f"鼠标动作失败 ({action_type}): {e}")
+            return False
 
     @classmethod
     def scroll_mouse(

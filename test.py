@@ -173,16 +173,12 @@ if __name__ == "__main__":
     # ocr_adb.click_text("游戏")
     for i in range(100):
         # ocr_adb.key_click(KeyCode.SPACE)
-        x1, y1, x2, y2 = 200, 300, 200, 400
-        ocr_adb.mouse_left_down(x1, y1)
-        time.sleep(1)
-        ocr_adb.swipe(x1, y1, x2, y2)
-        time.sleep(1)
-        ocr_adb.mouse_left_up(x2, y2)
+        x1, y1, x2, y2 = 200, 300, 200, 10
+        ocr_adb.swipe(x1, y1, x2, y2, True, 1)
         time.sleep(1)
 
     # # 首次开始 登录 掉线 登录
-    login(ocr_adb)
+    # login(ocr_adb)
     # # 进入副本
     # enter_instance(ocr_adb)
 

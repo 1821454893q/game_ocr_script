@@ -98,7 +98,9 @@ class ADBProvider(IDeviceProvider):
             logger.error(f"ADB点击异常: {e}")
             return False
 
-    def swipe(self, x1: int, y1: int, x2: int, y2: int, duration: float = 0.1) -> bool:
+    def swipe(
+        self, x1: int, y1: int, x2: int, y2: int, is_drag: bool = True, duration: float = 0.1
+    ) -> bool:
         """ADB滑动"""
         try:
             cmd = self._build_cmd(

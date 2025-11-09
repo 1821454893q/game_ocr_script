@@ -12,7 +12,7 @@ from gas.relative_recorder import PynputClickRecorder
 
 from .logger import get_logger
 from .providers.win_provider import WinProvider
-from .utils.image_util import ImageUtil
+import gas.util.img_util as imgUtil
 
 logger = get_logger()
 
@@ -23,9 +23,6 @@ class OCREngine:
     def __init__(self, device_provider: IDeviceProvider = None):
         # 设备提供者
         self.device = device_provider
-
-        # 图像处理器
-        self.image_processor = ImageUtil()
 
         # 初始化OCR模型
         self.model_det = TextRecognition(model_name="PP-OCRv5_mobile_det")
@@ -145,7 +142,7 @@ class OCREngine:
                     if score < confidence:
                         continue
 
-                    cropped = self.image_processor.crop_by_polygon(region_image, dt_polys[i])
+                    cropped = imgUtil.crop_by_polygon(region_image, dt_polys[i])
                     if cropped.size == 0:
                         continue
 
@@ -155,14 +152,14 @@ class OCREngine:
 
                         if rec_text and target_text in rec_text:
                             # 调整坐标到全屏坐标系
-                            bbox = self.image_processor.get_bounding_box(dt_polys[i])
+                            bbox = imgUtil.get_bounding_box(dt_polys[i])
                             abs_bbox = (
                                 bbox[0] + left,
                                 bbox[1] + top,
                                 bbox[2] + left,
                                 bbox[3] + top,
                             )
-                            center_x, center_y = self.image_processor.get_center(abs_bbox)
+                            center_x, center_y = imgUtil.get_center(abs_bbox)
 
                             logger.info(
                                 f"✅ 在区域内找到文本 '{rec_text}'，坐标: ({center_x}, {center_y})"
@@ -266,9 +263,11 @@ class OCREngine:
             logger.error(f"发送按键事件失败: {key.name}")
         return success
 
-    def swipe(self, x1: int, y1: int, x2: int, y2: int, duration: float = 0.5) -> bool:
+    def swipe(
+        self, x1: int, y1: int, x2: int, y2: int, is_drag: bool = True, duration: float = 0.5
+    ) -> bool:
         """滑动"""
-        success = self.device.swipe(x1, y1, x2, y2, duration)
+        success = self.device.swipe(x1, y1, x2, y2, is_drag, duration)
         if success:
             logger.debug(f"已滑动: ({x1}, {y1}) -> ({x2}, {y2})")
         else:

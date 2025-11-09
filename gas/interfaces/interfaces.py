@@ -11,7 +11,7 @@ class IScreenshotProvider(ABC):
     """截图提供者接口"""
 
     @abstractmethod
-    def capture(self) -> Optional[np.ndarray]:
+    def capture(self, region: tuple[int, int, int, int] | None = None) -> Optional[np.ndarray]:
         """截图"""
         pass
 
@@ -40,7 +40,9 @@ class IInputProvider(ABC):
         pass
 
     @abstractmethod
-    def swipe(self, x1: int, y1: int, x2: int, y2: int, duration: float = 0.1) -> bool:
+    def swipe(
+        self, x1: int, y1: int, x2: int, y2: int, is_drag: bool = True, duration: float = 0.1
+    ) -> bool:
         """滑动"""
         pass
 

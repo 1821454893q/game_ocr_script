@@ -15,7 +15,7 @@ import time
 
 from gas.interfaces.interfaces import IDeviceProvider
 from gas.cons.key_code import KeyCode, get_windows_keycode
-from gas.utils.keymouse_util import KeyMouseUtil
+from gas.util.keymouse_util import KeyMouseUtil
 
 from ..logger import get_logger
 
@@ -359,34 +359,65 @@ class WinProvider(IDeviceProvider):
         if action == "up":
             return KeyMouseUtil.mouse_left_up(self._hwnd, x, y) is None
 
-    def swipe(self, x1: int, y1: int, x2: int, y2: int, duration: float = 0.1) -> bool:
-        """简化版本的滑动（直线+随机波动）"""
-        distance = math.sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2)
+    def swipe(
+        self, x1: int, y1: int, x2: int, y2: int, is_drga: bool = True, duration: float = 0.5
+    ) -> bool:
+        """
+        统一的滑动方法
 
-        num_points = max(3, int(distance / 15))
-
+        Args:
+            x1, y1: 起始坐标
+            x2, y2: 结束坐标
+            is_drga: 是否拖拽（True=带按下状态的滑动，False=仅移动）
+            duration: 总持续时间
+        """
         try:
-            KeyMouseUtil.mouse_move(self._hwnd, x1, y1)
-            time.sleep(0.03)
+            # 激活窗口
+            KeyMouseUtil.window_activate(self._hwnd)
 
+            # 移动到起点
+            KeyMouseUtil.mouse_action(self._hwnd, x1, y1, "move", 0.03)
+
+            if is_drga:
+                # 拖拽模式：按下左键
+                KeyMouseUtil.mouse_action(self._hwnd, x1, y1, "down", 0.05)
+
+            # 计算移动路径
+            distance = math.sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2)
+            num_points = max(3, int(distance / 10))
+
+            # 移动过程
             for i in range(num_points):
                 t = i / (num_points - 1)
                 # 线性插值 + 随机波动
                 x = x1 + (x2 - x1) * t + random.randint(-3, 3)
                 y = y1 + (y2 - y1) * t + random.randint(-3, 3)
 
-                KeyMouseUtil.mouse_move(self._hwnd, int(x), int(y))
+                # 根据模式选择移动类型
+                action_type = "drag" if is_drga else "move"
+                KeyMouseUtil.mouse_action(self._hwnd, int(x), int(y), action_type, 0)
+
+                # 控制移动速度
                 time.sleep(duration / num_points * random.uniform(0.9, 1.1))
 
-            KeyMouseUtil.mouse_move(self._hwnd, x2, y2)
+            # 确保到达终点
+            action_type = "drag" if is_drga else "move"
+            KeyMouseUtil.mouse_action(self._hwnd, x2, y2, action_type, 0.05)
+
+            if is_drga:
+                # 拖拽模式：松开左键
+                KeyMouseUtil.mouse_action(self._hwnd, x2, y2, "up", 0.05)
+
             return True
 
         except Exception as e:
             print(f"滑动失败: {e}")
-            return False
-
-        except Exception as e:
-            print(f"滑动操作失败: {e}")
+            # 异常时确保松开左键
+            if is_drga:
+                try:
+                    KeyMouseUtil.mouse_action(self._hwnd, x2, y2, "up", 0)
+                except:
+                    pass
             return False
 
     def input_text(self, text: str) -> bool:
