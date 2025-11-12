@@ -6,8 +6,8 @@ import numpy as np
 from typing import Optional, Tuple
 
 from gas.cons.key_code import KeyCode, get_android_keycode
-from ..interfaces.interfaces import IDeviceProvider
-from ..logger import get_logger
+from gas.interfaces.interfaces import IDeviceProvider
+from gas.logger import get_logger
 
 logger = get_logger()
 
@@ -123,9 +123,7 @@ class ADBProvider(IDeviceProvider):
     def input_text(self, text: str) -> bool:
         """ADB输入文本"""
         try:
-            # 清理文本中的特殊字符
-            cleaned_text = text.replace(" ", "%s").replace("&", "\&")
-            cmd = self._build_cmd(["shell", "input", "text", cleaned_text])
+            cmd = self._build_cmd(["shell", "input", "text", text])
             result = subprocess.run(cmd, capture_output=True, timeout=5)
 
             success = result.returncode == 0

@@ -3,7 +3,7 @@ import random
 import time
 from pathlib import Path
 
-from ..logger import get_logger
+from gas.logger import get_logger
 
 logger = get_logger()
 

@@ -5,7 +5,7 @@ import win32api
 import win32con
 import win32gui
 
-from ..logger import get_logger
+from gas.logger import get_logger
 
 logger = get_logger()
 

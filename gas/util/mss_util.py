@@ -4,7 +4,7 @@ import numpy as np
 from mss.base import MSSBase
 from mss.models import Monitor
 
-from ..logger import get_logger
+from gas.logger import get_logger
 
 logger = get_logger()
 

@@ -2,6 +2,7 @@ import ctypes
 import re
 import time
 from ctypes import windll
+from typing import List, Tuple, Optional,Callable
 from pathlib import Path
 
 import psutil
@@ -9,8 +10,9 @@ import win32api
 import win32con
 import win32gui
 import win32process
+from dataclasses import dataclass, field
 
-from ..logger import get_logger
+from gas.logger import get_logger
 
 logger = get_logger()
 
@@ -35,6 +37,139 @@ UE4_CLIENT_HWND_TITLE = "UE4-Client Game已崩溃，即将关闭"
 # dpi
 STANDARD_DPI = 96  # 96 是标准 DPI
 
+@dataclass
+class WindowInfo:
+    """窗口信息结构体"""
+    hwnd: int
+    title: str
+    position: Tuple[int, int]
+    size: Tuple[int, int]
+    class_name: str
+    is_child: bool = False
+    parent: Optional['WindowInfo'] = None
+    is_visible: bool = False
+    style: int = 0
+    children: List['WindowInfo'] = field(default_factory=list)
+
+    def __repr__(self):
+        return f"WindowInfo(hwnd={self.hwnd}, title='{self.title}', class_name='{self.class_name}')"
+
+
+# 获取当前系统所有窗口句柄
+def list_all_windows() -> List[WindowInfo]:
+    """列出所有窗口（包括系统窗口和隐藏窗口），按树形结构返回"""
+    try:
+        windows_dict = {}  # 用于快速查找窗口
+        windows_list = []  # 最终返回的列表
+        processed_hwnds = set()
+
+        def _process_window(hwnd, is_child=False, parent_hwnd=None):
+            if hwnd in processed_hwnds:
+                return
+            processed_hwnds.add(hwnd)
+
+            try:
+                title = win32gui.GetWindowText(hwnd)
+                class_name = win32gui.GetClassName(hwnd)
+
+                # 获取窗口样式
+                style = win32gui.GetWindowLong(hwnd, win32con.GWL_STYLE)
+
+                # 检查窗口是否可见
+                is_visible = win32gui.IsWindowVisible(hwnd)
+
+                # 过滤条件可以更宽松
+                if not title and not class_name:
+                    return
+
+                try:
+                    rect = win32gui.GetWindowRect(hwnd)
+                    width = rect[2] - rect[0]
+                    height = rect[3] - rect[1]
+
+                    # 更宽松的尺寸过滤
+                    if width <= 0 or height <= 0 or width > 10000 or height > 10000:
+                        return
+
+                except:
+                    # 如果无法获取位置信息，使用默认值
+                    rect = (0, 0, 0, 0)
+                    width = 0
+                    height = 0
+
+                # 创建窗口信息结构体
+                window_info = WindowInfo(
+                    hwnd=hwnd,
+                    title=title,
+                    position=(rect[0], rect[1]),
+                    size=(width, height),
+                    class_name=class_name,
+                    is_child=False,  # 初始值，后续会修正
+                    parent=None,  # 初始化为None，后续会设置
+                    is_visible=is_visible,
+                    style=style,
+                    children=[]  # 子窗口列表
+                )
+
+                # 存储到字典和列表
+                windows_dict[hwnd] = window_info
+                windows_list.append(window_info)
+
+                # 递归枚举子窗口
+                def enum_child_proc(child_hwnd, _):
+                    _process_window(child_hwnd, is_child=True, parent_hwnd=hwnd)
+                    return True
+
+                win32gui.EnumChildWindows(hwnd, enum_child_proc, None)
+
+            except Exception as e:
+                print(f"处理窗口 {hwnd} 时出错: {e}")
+
+        # 枚举所有窗口（包括不可见的）
+        def enum_all_windows_proc(hwnd, _):
+            _process_window(hwnd, is_child=False)
+            return True
+
+        win32gui.EnumWindows(enum_all_windows_proc, None)
+
+        # 构建窗口树形结构
+        _build_window_tree(windows_dict, windows_list)
+
+        print(f"找到 {len(windows_list)} 个窗口（包含所有类型）")
+
+        return windows_list
+
+    except Exception as e:
+        print(f"枚举窗口失败: {e}")
+        return []
+
+
+def _build_window_tree(windows_dict: dict, windows_list: List[WindowInfo]):
+    """构建窗口的树形结构"""
+    # 建立父子关系
+    for window in windows_list:
+        parent_hwnd = win32gui.GetParent(window.hwnd)
+        if parent_hwnd and parent_hwnd in windows_dict:
+            parent_window = windows_dict[parent_hwnd]
+            window.parent = parent_window
+            window.is_child = True
+            parent_window.children.append(window)
+    
+    # 清理根窗口的parent引用（确保根窗口的parent为None）
+    for window in windows_list:
+        if not window.is_child:
+            window.parent = None
+
+
+def find_in_children(windows: List[WindowInfo], call: Callable[[WindowInfo],bool]) -> Optional[WindowInfo]:
+    """在子窗口中递归查找满足条件的窗口"""
+    for window in windows:
+        if call(window):
+            return window
+        result = find_in_children(window.children, call)
+        if result:
+            return result
+    return None
 
 def get_pid_by_exe_name(exe_name: str):
     for proc in psutil.process_iter(["name", "pid"]):
@@ -44,29 +179,17 @@ def get_pid_by_exe_name(exe_name: str):
             return pro_pid
     return None
 
-
-# 获取当前系统所有窗口句柄
-def get_all_hwnd() -> list:
-    def get_hwnd_callback(cb_hwnd, cb_window_list):
-        # _, found_pid = win32process.GetWindowThreadProcessId(cb_hwnd)
-        # print(f"found_pid: {found_pid}")
-        cb_window_list.append(cb_hwnd)
-
-    window_list: list = []
-    win32gui.EnumWindows(get_hwnd_callback, window_list)
-    return window_list
-
-
 def get_hwnd_by_exe_name(exe_name: str) -> list | None:
     ge_pid = get_pid_by_exe_name(exe_name)
     if ge_pid is None:
         return None
-    ge_hwnd_list: list = get_all_hwnd()
+    windows_list = list_all_windows()
     rt_hwnd_list: list = []
-    for ge_hwnd in ge_hwnd_list:
-        _, found_pid = win32process.GetWindowThreadProcessId(ge_hwnd)
+    for windows in windows_list:
+        _, found_pid = win32process.GetWindowThreadProcessId(windows.hwnd)
         if found_pid == ge_pid:
-            rt_hwnd_list.append(ge_hwnd)
+            rt_hwnd_list.append(windows.hwnd)
+            
     return rt_hwnd_list
 
 
@@ -201,40 +324,6 @@ def get_login_hwnd_official() -> list | None:
             if window_class != WUWA_HWND_CLASS_NAME:
                 login_hwnd_list.append(wd_hwnd)
     return login_hwnd_list
-
-
-# b服 获取账号登录界面窗口句柄 by wakening
-def get_login_hwnd_bilibili():
-    windows_list: list = get_all_hwnd()
-    for wd_hwnd in windows_list:
-        window_class = win32gui.GetClassName(wd_hwnd)
-        pattern = re.compile(rf"^{BILIBILI_LOGIN_HWND_CLASS_NAME}$")
-        match = pattern.match(window_class)
-        if match:
-            logger.debug(
-                "window class: %s, title: %s", window_class, win32gui.GetWindowText(wd_hwnd)
-            )
-            return wd_hwnd
-    return None
-
-
-# 国际服 获取账号登录界面窗口句柄 by wakening
-def get_login_hwnd_oversea():
-    windows_list: list = get_all_hwnd()
-    for hwnd in windows_list:
-        pass
-    return None
-
-
-# UE4-Client Game已崩溃窗口句柄 by wakening
-def get_ue4_client_crash_hwnd():
-    windows_list: list = get_all_hwnd()
-    for hwnd in windows_list:
-        title = win32gui.GetWindowText(hwnd)
-        if title is not None and title == UE4_CLIENT_HWND_TITLE:
-            return hwnd
-    return None
-
 
 # 强制关闭进程
 # noinspection PyUnresolvedReferences

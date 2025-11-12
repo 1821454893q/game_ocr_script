@@ -10,8 +10,8 @@ from gas.cons.key_code import KeyCode
 from gas.providers.adb_provider import ADBProvider
 from gas.relative_recorder import PynputClickRecorder
 
-from .logger import get_logger
-from .providers.win_provider import WinProvider
+from gas.logger import get_logger
+from gas.providers.win_provider import WinProvider
 import gas.util.img_util as imgUtil
 
 logger = get_logger()

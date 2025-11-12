@@ -12,7 +12,7 @@ setup(
     description="基于PaddleOCR的游戏自动化工具",
     long_description=long_description,
     long_description_content_type="text/markdown",
-    packages=find_packages(where="gas"),
+    packages=find_packages(),
     classifiers=[
         "Development Status :: 4 - Beta",
         "Intended Audience :: Developers",
@@ -34,6 +34,7 @@ setup(
         "pillow>=9.0.0",
         "psutil>=5.9.0",
         "pynput>=1.8.1",
+        "mss>=10.1.0",
     ],
     entry_points={
         "console_scripts": [

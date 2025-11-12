@@ -17,7 +17,7 @@ from gas.interfaces.interfaces import IDeviceProvider
 from gas.cons.key_code import KeyCode, get_windows_keycode
 from gas.util.keymouse_util import KeyMouseUtil
 
-from ..logger import get_logger
+from gas.logger import get_logger
 
 logger = get_logger()
 

@@ -3,8 +3,8 @@
 
 import argparse
 import time
-from .ocr_engine import OCREngine
-from .logger import get_logger
+from gas.ocr_engine import OCREngine
+from gas.logger import get_logger
 
 logger = get_logger()
 

@@ -3,7 +3,7 @@ import time
 from pynput import mouse, keyboard
 from typing import List, Tuple
 import pyautogui
-from .logger import get_logger
+from gas.logger import get_logger
 
 logger = get_logger()
 

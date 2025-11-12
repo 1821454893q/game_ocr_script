@@ -36,6 +36,7 @@ dependencies = [
     "setuptools>=80.9.0",
     "paddlepaddle==3.2.0",
     "matplotlib>=3.9.4",
+    "mss>=10.1.0",
 ]
 
 [project.optional-dependencies]
