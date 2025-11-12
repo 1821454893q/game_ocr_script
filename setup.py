@@ -35,6 +35,7 @@ setup(
         "psutil>=5.9.0",
         "pynput>=1.8.1",
         "mss>=10.1.0",
+        "toml>=10.1.0",
     ],
     entry_points={
         "console_scripts": [
