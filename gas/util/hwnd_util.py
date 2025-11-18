@@ -235,12 +235,29 @@ def get_exe_path_from_hwnd(hwnd: int) -> str | None:
 def _find_all_windows(class_name=None, titles=None):
     result = []
 
+    def check_window(hwnd):
+        if not win32gui.IsWindowVisible(hwnd):
+            return False
+
+        window_class = win32gui.GetClassName(hwnd)
+        window_text = win32gui.GetWindowText(hwnd)
+
+        class_match = class_name is None or window_class == class_name
+        title_match = titles is None or window_text in titles
+
+        return class_match and title_match
+
     def callback(hwnd, _):
-        if win32gui.IsWindowVisible(hwnd):
-            if (class_name is None or win32gui.GetClassName(hwnd) == class_name) and (
-                not titles or win32gui.GetWindowText(hwnd) in titles
-            ):
-                result.append(hwnd)
+        if check_window(hwnd):
+            result.append(hwnd)
+
+        def child_callback(child_hwnd, __):
+            if check_window(child_hwnd):
+                result.append(child_hwnd)
+            return True
+
+        win32gui.EnumChildWindows(hwnd, child_callback, None)
+        return True
 
     win32gui.EnumWindows(callback, None)
     return result
@@ -250,10 +267,10 @@ def get_hwnd_by_class_and_title(class_name: str, titles: list[str] | str) -> lis
     if isinstance(titles, str):
         titles = [titles]
     windows = []
-    logger.debug("window class: %s, title: %s", class_name, titles)
+    # logger.debug("window class: %s, title: %s", class_name, titles)
     # window = win32gui.FindWindow(class_name, title)  # 只会返回一个
     find_windows = _find_all_windows(class_name, titles)
-    logger.debug("windows: %s", find_windows)
+    # logger.debug("windows: %s", find_windows)
     windows.extend(find_windows)
     return windows
 
@@ -400,7 +417,7 @@ def get_client_rect(hwnd) -> tuple[int, int, int, int]:
     return win32gui.GetClientRect(hwnd)
 
 
-def get_window_wh(hwnd) -> (int, int):
+def get_window_wh(hwnd) -> tuple[int, int]:
     """获取特定窗口的宽高px"""
     left, top, right, bot = win32gui.GetWindowRect(hwnd)
     logger.debug("window rect: (%s, %s, %s, %s)", left, top, right, bot)
