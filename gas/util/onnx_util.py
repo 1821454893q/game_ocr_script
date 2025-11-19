@@ -1,4 +1,3 @@
-# onnx_yolo_detector.py
 import onnxruntime as ort
 import cv2
 import numpy as np

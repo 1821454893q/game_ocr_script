@@ -10,6 +10,7 @@ from . import screenshot_util
 from . import windows_util
 from . import wrap_util
 from . import calculate_time_util
+from . import onnx_util
 
 __all__ = [
     "img_util",
@@ -22,4 +23,5 @@ __all__ = [
     "windows_util",
     "wrap_util",
     "calculate_time_util",
+    "onnx_util",
 ]
