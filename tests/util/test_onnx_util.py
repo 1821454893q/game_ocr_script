@@ -2,59 +2,29 @@ import cv2
 import numpy as np
 from gas.util.onnx_util import YOLOONNXDetector
 
-onnx_path = "best.onnx"
+onnx_path = "tests/resource/best.onnx"
 class_names = ["ui_quit", "ui_menu", "ui_lv"]
-image_path = "test.png"
+input_image_path = "tests/resource/test.png"
+output_image_path = "tests/resource/result.png"
 
 
-def test_detector_image():
+def test_detector():
     """使用示例"""
-    # 1. 初始化检测器
+    # 初始化检测器
     detector = YOLOONNXDetector(
-        onnx_path=onnx_path,
-        class_names=class_names,
-        conf_threshold=0.1,
+        model_path=onnx_path,  # 替换为你的ONNX模型路径
+        class_names=class_names,  # 替换为你的类别名称
+        conf_threshold=0.8,
+        input_size=(640, 640),
+        providers=["CPUExecutionProvider"],
     )
 
-    print("=" * 50)
-    print("YOLO ONNX 检测器演示")
-    print("=" * 50)
+    # 检测单张图片
+    img = cv2.imread(input_image_path)
+    result_img, detections, ms = detector.detect(img)
 
-    # 2. 检测图片文件
-    print("\n 📁 检测图片文件:")
-    try:
-        result_img, detections, inference_time = detector.detect_image(image_path)
-        detector.print_detections(detections)
-        print(f"   推理时间: {inference_time:.2f}ms")
-
-        # 显示结果
-        cv2.imshow("文件检测结果", result_img)
-        cv2.waitKey(0)
-        cv2.destroyAllWindows()
-    except Exception as e:
-        print(f"   文件检测失败: {e}")
-
-
-def test_detector_array():
-    """使用示例"""
-    # 1. 初始化检测器
-    detector = YOLOONNXDetector(
-        onnx_path=onnx_path,
-        class_names=class_names,
-        conf_threshold=0.1,
-    )
-
-    print("=" * 50)
-    print("YOLO ONNX 检测器演示")
-    print("=" * 50)
-
-    print("\n2. 🎨 检测 numpy 数组:")
-    try:
-        # 创建一个测试图像
-        test_array = np.random.randint(0, 255, (480, 640, 3), dtype=np.uint8)
-        result_img, detections, inference_time = detector.detect_image(test_array)
-        detector.print_detections(detections)
-    except Exception as e:
-        print(f"   数组检测失败: {e}")
-
-    print("✨ 演示完成!")
+    # 打印结果
+    detector.print_detections(detections)
+    print(f"推理时间: {ms:.2f}ms")
+    cv2.imshow("result", result_img)
+    cv2.waitKey(0)
