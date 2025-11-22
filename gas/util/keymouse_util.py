@@ -91,6 +91,22 @@ class KeyMouseUtil:
         win32gui.PostMessage(hwnd, win32con.WM_MBUTTONUP, win32con.MK_MBUTTON, l_param)
 
     @classmethod
+    def mouse_middle_down(self, hwnd, x: int | float = 0, y: int | float = 0, seconds: float = 0.0):
+        x = int(x)
+        y = int(y)
+        l_param = win32api.MAKELONG(x, y)
+        win32gui.PostMessage(hwnd, win32con.WM_MBUTTONDOWN, win32con.MK_RBUTTON, l_param)
+        self.__sleep(seconds)
+
+    @classmethod
+    def mouse_middle_up(self, hwnd, x: int | float = 0, y: int | float = 0, seconds: float = 0.0):
+        x = int(x)
+        y = int(y)
+        l_param = win32api.MAKELONG(x, y)
+        win32gui.PostMessage(hwnd, win32con.WM_MBUTTONUP, 0, l_param)
+        self.__sleep(seconds)
+
+    @classmethod
     def mouse_move(self, hwnd, x: int | float, y: int | float, seconds: float = 0.0):
         KeyMouseUtil.window_activate(hwnd)
         lParam = win32api.MAKELONG(x, y)
