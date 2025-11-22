@@ -39,6 +39,7 @@ dependencies = [
     "toml>=0.10.2",
     "pytest>=8.4.2",
     "onnxruntime>=1.21.0",
+    "onnx>=1.19.1",
 ]
 
 [project.optional-dependencies]

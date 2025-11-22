@@ -1,5 +1,8 @@
 # onnx_util.py
+import ast
+import json
 import onnxruntime as ort
+import onnx
 import cv2
 import numpy as np
 import time
@@ -44,16 +47,70 @@ class YOLOONNXDetector:
         self.input_name = input_info.name
         self.input_shape = input_info.shape  # [1, 3, H, W] or dynamic
 
-        # 自动获取模型实际输入尺寸（支持动态轴）
-        if self.input_shape[2] not in (-1, 0) and self.input_shape[3] not in (-1, 0):
-            self.input_height = self.input_shape[2]
-            self.input_width = self.input_shape[3]
-            log.debug(f"Model input size from ONNX: {self.input_width}x{self.input_height}")
-        else:
-            log.debug(f"Using user specified input size: {self.input_width}x{self.input_height}")
+        # # 自动获取模型实际输入尺寸（支持动态轴）
+        # if self.input_shape[2] not in (-1, 0) and self.input_shape[3] not in (-1, 0):
+        #     self.input_height = self.input_shape[2]
+        #     self.input_width = self.input_shape[3]
+        #     log.debug(f"Model input size from ONNX: {self.input_width}x{self.input_height}")
+        # else:
+        #     log.debug(f"Using user specified input size: {self.input_width}x{self.input_height}")
 
-        self.class_names = class_names or [f"class_{i}" for i in range(80)]
-        log.debug(f"Loaded {len(self.class_names)} classes")
+        if class_names is None:
+            self.class_names = self._load_classname(model_path=model_path)
+        else:
+            self.class_names = class_names or [f"class_{i}" for i in range(80)]
+
+        log.debug(f"Loaded {len(self.class_names)} classes, {self.class_names}")
+
+    def get_class_names(self)->Optional[List[str]]:
+        return self.class_names
+
+    # 尝试从onnx模型中获取分类名称
+    def _load_classname(self, model_path: str)->List[str]:
+        """从ONNX模型文件中提取类别名称"""
+        try:
+            onnx_model = onnx.load(model_path)
+            class_names = []
+            
+            # 检查元数据
+            for prop in onnx_model.metadata_props:
+                if prop.key in ['names', 'classes', 'class_names']:
+                    names_str = prop.value
+                    # 解析类别字符串
+                    class_names = self._parse_class_names(names_str)
+                    if class_names:
+                        return class_names
+            
+            # 如果元数据中没有，返回空字典
+        except Exception as e:
+            log.error(f"获取类名失败! {e}")
+
+        return []
+    
+    def _parse_class_names(self, names_str)->List[str]:
+        """解析类别名称字符串"""
+        if not names_str:
+            return []
+            
+        try:
+            parsed = ast.literal_eval(names_str)
+            return [parsed[value] for value in parsed]
+        except Exception as e:
+            log.error(f"原生dist解析失败 {e}")
+
+        # 尝试JSON格式
+        try:
+            parsed = json.loads(names_str)
+            if isinstance(parsed, dict):
+                return [str(v) for k, v in parsed.items()]
+            elif isinstance(parsed, list):
+                return [parsed[i] for i in parsed]
+        except json.JSONDecodeError:
+            log.error(f"json类别解析失败! 元数据{names_str}")
+
+
+        
+        return []
 
     # ==================== 正确的 Letterbox 预处理 ====================
     def _letterbox(
@@ -241,6 +298,12 @@ class YOLOONNXDetector:
             conf = det["confidence"]
             name = det["class_name"]
             color = colors[det["class_id"] % len(colors)]
+
+            try:
+                name = self.class_names[int (det["class_id"])]
+            except Exception as e:
+                log.error(e)
+                pass
 
             cv2.rectangle(img, (x1, y1), (x2, y2), color, 2)
             label = f"{name} {conf:.2f}"
