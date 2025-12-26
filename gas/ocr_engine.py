@@ -104,7 +104,7 @@ class OCREngine:
 
                             return center_x, center_y, rec_text
 
-            logger.warn(f"未找到文本: {target_text}")
+            logger.warning(f"未找到文本: {target_text}")
             return None
 
         except Exception as e:

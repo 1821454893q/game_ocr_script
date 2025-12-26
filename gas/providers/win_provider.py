@@ -192,7 +192,6 @@ class WinProvider(IDeviceProvider):
             KeyMouseUtil.window_activate(self._hwnd)
 
         if action == "tap":
-            logger.debug(f"鼠标点击 ({x},{y})")
             return KeyMouseUtil.click(self._hwnd, x, y) is None
 
         if action == "down":

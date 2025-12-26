@@ -69,8 +69,8 @@ class SimpleLogger:
                 },
             },
             "loggers": {
-                "app": {
-                    "level": "DEBUG",
+                "orc_utils": {
+                    "level": "ERROR",
                     "handlers": [
                         "console",
                         "file_debug",
