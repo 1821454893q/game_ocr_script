@@ -5,7 +5,7 @@ import json
 import os
 
 import toml
-from gas.settings import LOG_CONFIG_FILE,PYPROJECT_FILE
+from gas.settings import LOG_CONFIG_FILE, PYPROJECT_FILE
 from typing import Dict, Any
 
 
@@ -20,7 +20,9 @@ class SimpleLogger:
 
         self._ensure_config_file_exists()
         self._setup_logging()
-        self.logger = logging.getLogger("app")
+        self.logger = logging.getLogger("orc_utils")
+        if get_level() == "DEBUG":
+            print(f"✅ 日志配置已加载  path:{self.config_file}")
 
     def _get_default_config(self) -> Dict[str, Any]:
         """获取默认配置"""
@@ -28,9 +30,7 @@ class SimpleLogger:
             "version": 1,
             "disable_existing_loggers": False,
             "formatters": {
-                "default": {
-                    "format": "%(asctime)s - %(levelname)s - %(filename)s:%(lineno)d - %(message)s"
-                }
+                "default": {"format": "%(asctime)s - %(levelname)s - %(filename)s:%(lineno)d - %(message)s"}
             },
             "handlers": {
                 "console": {
@@ -97,11 +97,8 @@ class SimpleLogger:
         try:
             with open(self.config_file, "r", encoding="utf-8") as f:
                 config = json.load(f)
-            config["formatters"]["default"][
-                "format"
-            ] = f"{get_app()} - {config["formatters"]["default"]["format"]}"
+            config["formatters"]["default"]["format"] = f"{get_app()} - {config["formatters"]["default"]["format"]}"
             logging.config.dictConfig(config)
-            print(f"✅ 日志配置已加载  path:{self.config_file}")
         except Exception as e:
             print(f"❌ 日志配置失败: {e}")
             # 使用基础配置作为后备
@@ -179,11 +176,11 @@ def get_level() -> str | None:
     return _log_instance.get_current_level()
 
 
-# 获取日志名称开头 默认 ${projectName} [$version}] 无法获取返回app
+# 获取日志名称开头 默认 ${projectName} [$version}] 无法获取返回orc_utils
 def get_app() -> str:
     try:
         with open(PYPROJECT_FILE, "r", encoding="utf-8") as f:
             data = toml.load(f)
         return f"{data['project']['name']} [{data['project']['version']}]"
     except:
-        return "app"
+        return "orc_utils"

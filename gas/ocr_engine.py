@@ -52,9 +52,7 @@ class OCREngine:
         """检查引擎是否就绪"""
         return self.device is not None and self.device.is_available()
 
-    def find_text(
-        self, target_text: str, confidence: float = 0.5
-    ) -> Optional[Tuple[int, int, str]]:
+    def find_text(self, target_text: str, confidence: float = 0.5) -> Optional[Tuple[int, int, str]]:
         """查找文本并返回坐标"""
         logger.info(f"开始搜索文本: {target_text}")
 
@@ -81,7 +79,7 @@ class OCREngine:
                         continue
 
                     # 裁剪区域 - 使用 ImageProcessor
-                    cropped = self.image_processor.crop_by_polygon(screenshot, dt_polys[i])
+                    cropped = imgUtil.crop_by_polygon(screenshot, dt_polys[i])
                     if cropped.size == 0:
                         logger.debug(f"跳过无效的裁剪区域 {i}")
                         continue
@@ -94,12 +92,12 @@ class OCREngine:
 
                         if rec_text and target_text in rec_text:
                             # 计算中心坐标 - 使用 ImageProcessor
-                            bbox = self.image_processor.get_bounding_box(dt_polys[i])
-                            center_x, center_y = self.image_processor.get_center(bbox)
+                            bbox = imgUtil.get_bounding_box(dt_polys[i])
+                            center_x, center_y = imgUtil.get_center(bbox)
 
                             total_time = (time.time() - start_time) * 1000
                             logger.info(
-                                f"✅ 找到文本 '{rec_text}'，坐标: ({center_x}, {center_y})，耗时: {total_time:.1f}ms"
+                                f"✅ 找到文本 '{rec_text}',坐标: ({center_x}, {center_y}),符合目标 '{target_text}',耗时: {total_time:.1f}ms"
                             )
 
                             return center_x, center_y, rec_text
@@ -161,9 +159,7 @@ class OCREngine:
                             )
                             center_x, center_y = imgUtil.get_center(abs_bbox)
 
-                            logger.info(
-                                f"✅ 在区域内找到文本 '{rec_text}'，坐标: ({center_x}, {center_y})"
-                            )
+                            logger.info(f"✅ 在区域内找到文本 '{rec_text}'，坐标: ({center_x}, {center_y})")
                             return center_x, center_y, rec_text
 
             return None
@@ -263,9 +259,7 @@ class OCREngine:
             logger.error(f"发送按键事件失败: {key.name}")
         return success
 
-    def swipe(
-        self, x1: int, y1: int, x2: int, y2: int, is_drag: bool = True, duration: float = 0.5
-    ) -> bool:
+    def swipe(self, x1: int, y1: int, x2: int, y2: int, is_drag: bool = True, duration: float = 0.5) -> bool:
         """滑动"""
         success = self.device.swipe(x1, y1, x2, y2, is_drag, duration)
         if success:

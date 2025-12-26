@@ -168,14 +168,19 @@ if __name__ == "__main__":
     # # 示例2: 使用ADB提供者
     # adb_path = r"D:\Program Files\Netease\MuMu Player 12\nx_device\12.0\shell\adb.exe"
     # # ocr_adb = ocr.OCREngine.create_with_adb(adb_path, "127.0.0.1:16366")
-    # # ocr_adb = ocr.OCREngine.create_with_window("MuMuNxDevice", "Qt5156QWindowIcon", 2)
-    ocr_adb = ocr.OCREngine.create_with_window("二重螺旋  ", "UnrealWindow", 2)
+    ocr_adb = ocr.OCREngine.create_with_window("MuMuNxDevice", "Qt5156QWindowIcon", 2)
+    # ocr_adb = ocr.OCREngine.create_with_window("二重螺旋  ", "UnrealWindow", 2)
     # ocr_adb.click_text("游戏")
-    for i in range(100):
-        # ocr_adb.key_click(KeyCode.SPACE)
-        x1, y1, x2, y2 = 200, 300, 200, 10
-        ocr_adb.swipe(x1, y1, x2, y2, True, 1)
+    while True:
+        ocr_adb.click_text("再次进行")
         time.sleep(1)
+        ocr_adb.click_text("开始挑战")
+        time.sleep(1)
+    # for i in range(100):
+    #     # ocr_adb.key_click(KeyCode.SPACE)
+    #     x1, y1, x2, y2 = 200, 300, 200, 10
+    #     ocr_adb.swipe(x1, y1, x2, y2, True, 1)
+    #     time.sleep(1)
 
     # # 首次开始 登录 掉线 登录
     # login(ocr_adb)
