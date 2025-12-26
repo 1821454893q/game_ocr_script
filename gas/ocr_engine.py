@@ -31,9 +31,11 @@ class OCREngine:
         logger.info("OCR引擎初始化完成")
 
     @classmethod
-    def create_with_window(self, window_title: str, class_name: str = None, capture_mode: int = 1):
+    def create_with_window(
+        self, window_title: str, class_name: str = None, capture_mode: int = 1, activate_windows: bool = False
+    ):
         """创建使用窗口提供者的OCR引擎"""
-        provider = WinProvider(window_title, class_name, capture_mode)
+        provider = WinProvider(window_title, class_name, capture_mode, activate_windows)
 
         return self(provider)
 

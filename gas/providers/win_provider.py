@@ -27,12 +27,15 @@ logger = get_logger()
 class WinProvider(IDeviceProvider):
     """Windows窗口管理工具 - 包含截图和后台操作"""
 
-    def __init__(self, window_title: str = None, class_name: str = None, capture_mode: int = 1):
+    def __init__(
+        self, window_title: str = None, class_name: str = None, capture_mode: int = 1, activate_windows: bool = False
+    ):
         self.window_title = window_title
         self.class_name = class_name
         self._hwnd = None
         self._window = None
         self._capture_mode = capture_mode
+        self.activate_windows = activate_windows
 
         if window_title:
             self._find_and_set_hwnd(window_title, class_name)
@@ -139,6 +142,9 @@ class WinProvider(IDeviceProvider):
             return False
 
         try:
+            # 激活窗口
+            if self.activate_windows:
+                KeyMouseUtil.window_activate(self._hwnd)
             KeyMouseUtil.mouse_move(x, y)
             logger.debug(f"后台移动鼠标到: ({x}, {y})")
             return True
@@ -153,7 +159,8 @@ class WinProvider(IDeviceProvider):
             if not self.is_available():
                 return False
             # 激活窗口
-            KeyMouseUtil.window_activate(self._hwnd)
+            if self.activate_windows:
+                KeyMouseUtil.window_activate(self._hwnd)
             # 转换为Windows键码
             win_keycode = get_windows_keycode(keycode)
             key_name = keycode.name
@@ -180,6 +187,10 @@ class WinProvider(IDeviceProvider):
             return False
 
     def click(self, x: int, y: int, action: str = "tap") -> bool:
+        # 激活窗口
+        if self.activate_windows:
+            KeyMouseUtil.window_activate(self._hwnd)
+
         if action == "tap":
             logger.debug(f"鼠标点击 ({x},{y})")
             return KeyMouseUtil.click(self._hwnd, x, y) is None
@@ -202,7 +213,8 @@ class WinProvider(IDeviceProvider):
         """
         try:
             # 激活窗口
-            KeyMouseUtil.window_activate(self._hwnd)
+            if self.activate_windows:
+                KeyMouseUtil.window_activate(self._hwnd)
 
             # 移动到起点
             KeyMouseUtil.mouse_action(self._hwnd, x1, y1, "move", 0.03)

@@ -108,7 +108,6 @@ class KeyMouseUtil:
 
     @classmethod
     def mouse_move(self, hwnd, x: int | float, y: int | float, seconds: float = 0.0):
-        KeyMouseUtil.window_activate(hwnd)
         lParam = win32api.MAKELONG(x, y)
         win32gui.SendMessage(hwnd, win32con.WM_MOUSEMOVE, 0, lParam)
         self.__sleep(seconds)
@@ -167,9 +166,7 @@ class KeyMouseUtil:
             return False
 
     @classmethod
-    def scroll_mouse(
-        self, hwnd, count: int, x: int | float = 0, y: int | float = 0, seconds: float = 0.0
-    ):
+    def scroll_mouse(self, hwnd, count: int, x: int | float = 0, y: int | float = 0, seconds: float = 0.0):
         """
         鼠标滚轮滚动
 
