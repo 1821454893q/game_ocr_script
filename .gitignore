@@ -8,5 +8,5 @@ build
 .vscode
 .pytest_cache
 best.onnx
-logging_config.json
+gas/logging_config.json
 assets

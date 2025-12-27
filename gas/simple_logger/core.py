@@ -5,6 +5,7 @@ import logging.config
 import os
 from datetime import datetime
 from typing import Dict, Any, Optional
+from importlib.metadata import version as get_package_version, PackageNotFoundError
 
 import toml
 
@@ -68,18 +69,31 @@ class SimpleLogger:
             print(f"✅ [{project_name}] 日志初始化完成，配置路径: {self.config_file}")
 
     def _get_app_prefix(self) -> str:
-        """尝试从 pyproject.toml 读取 name[version]，否则返回 project_name"""
-        if not self.pyproject_file or not os.path.exists(self.pyproject_file):
-            return self.project_name
-
+        """
+        优先从已安装的包元数据读取 name 和 version
+        其次尝试读取 pyproject.toml（仅用于本地开发）
+        最后退回 project_name
+        """
+        # 方法1：优先从已安装包的元数据读取（打包发布后可用）
         try:
-            with open(self.pyproject_file, "r", encoding="utf-8") as f:
-                data = toml.load(f)
-            name = data.get("project", {}).get("name", self.project_name)
-            version = data.get("project", {}).get("version", "")
-            return f"{name} [{version}]" if version else name
-        except Exception:
-            return self.project_name
+            pkg_version = get_package_version(self.project_name)
+            return f"{self.project_name} [{pkg_version}]"
+        except PackageNotFoundError:
+            pass  # 包没安装（本地开发模式），继续尝试其他方式
+
+        # 方法2：本地开发时读取 pyproject.toml
+        if self.pyproject_file and os.path.exists(self.pyproject_file):
+            try:
+                with open(self.pyproject_file, "r", encoding="utf-8") as f:
+                    data = toml.load(f)
+                name = data.get("project", {}).get("name", self.project_name)
+                version = data.get("project", {}).get("version", "")
+                return f"{name} [{version}]" if version else name
+            except Exception:
+                pass
+
+        # 方法3：最后退回默认
+        return self.project_name
 
     def _ensure_log_dirs(self):
         dirs = ["debug", "info", "warn", "error"]
