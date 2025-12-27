@@ -1,7 +1,9 @@
 # src/ocr_engine.py
+from dataclasses import dataclass
 import time
-from typing import List, Tuple, Optional
+from typing import List, Tuple, Optional, Callable, Any, Union, Pattern
 import cv2
+import re
 import numpy as np
 from paddleocr import TextRecognition
 
@@ -13,8 +15,31 @@ from gas.relative_recorder import PynputClickRecorder
 from gas.logger import get_logger
 from gas.providers.win_provider import WinProvider
 import gas.util.img_util as imgUtil
+from gas.util.wrap_util import timeit
 
 logger = get_logger()
+
+
+@dataclass
+class TextAction:
+    pattern: Union[str, Pattern]  # 支持字符串或编译好的正则
+    action: Callable[[int, int, str, "OCREngine"], Any]
+    priority: int = 0
+    once: bool = False
+    description: str = ""
+
+    def __post_init__(self):
+        if isinstance(self.pattern, str):
+            self.compiled = re.compile(self.pattern)
+            if not self.description:
+                self.description = self.pattern
+        else:
+            self.compiled = self.pattern
+            if not self.description:
+                self.description = self.pattern.pattern
+
+    def matches(self, text: str) -> bool:
+        return bool(self.compiled.search(text))
 
 
 class OCREngine:
@@ -54,149 +79,99 @@ class OCREngine:
         """检查引擎是否就绪"""
         return self.device is not None and self.device.is_available()
 
-    def find_text(self, target_text: str, confidence: float = 0.5) -> Optional[Tuple[int, int, str]]:
-        """查找文本并返回坐标"""
-        logger.info(f"开始搜索文本: {target_text}")
+    def find_text(
+        self, target_text: str, confidence: float = 0.5, use_regex: bool = False
+    ) -> Optional[Tuple[int, int, str]]:
+        pattern = re.compile(target_text) if use_regex else None
 
-        try:
-            start_time = time.time()
+        ocr_results = self._perform_ocr(confidence=confidence)
 
-            # 使用设备提供者截图
-            screenshot = self.device.capture()
-            if screenshot is None:
-                logger.error("截图失败")
-                return None
+        for item in ocr_results:
+            text = item["text"]
+            if (use_regex and pattern.search(text)) or (not use_regex and target_text in text):
+                x, y = item["center"]
+                logger.info(f"✅ 找到文本 '{text}' (目标: {target_text})，坐标: ({x}, {y})")
+                return x, y, text
 
-            # 文本检测 - OCR核心逻辑
-            det_results = self.model_det.predict(screenshot, batch_size=1)
-
-            for res in det_results:
-                dt_polys = res.json["res"]["dt_polys"]
-                dt_scores = res.json["res"]["dt_scores"]
-
-                logger.debug(f"检测到 {len(dt_polys)} 个文本区域")
-
-                for i, score in enumerate(dt_scores):
-                    if score < confidence:
-                        continue
-
-                    # 裁剪区域 - 使用 ImageProcessor
-                    cropped = imgUtil.crop_by_polygon(screenshot, dt_polys[i])
-                    if cropped.size == 0:
-                        logger.debug(f"跳过无效的裁剪区域 {i}")
-                        continue
-
-                    # 文本识别 - OCR核心逻辑
-                    rec_results = self.model_rec.predict(cropped, batch_size=1)
-                    for rec in rec_results:
-                        rec_text = rec.json["res"]["rec_text"]
-                        logger.debug(f"识别文本: {rec_text} (置信度: {score:.3f})")
-
-                        if rec_text and target_text in rec_text:
-                            # 计算中心坐标 - 使用 ImageProcessor
-                            bbox = imgUtil.get_bounding_box(dt_polys[i])
-                            center_x, center_y = imgUtil.get_center(bbox)
-
-                            total_time = (time.time() - start_time) * 1000
-                            logger.info(
-                                f"✅ 找到文本 '{rec_text}',坐标: ({center_x}, {center_y}),符合目标 '{target_text}',耗时: {total_time:.1f}ms"
-                            )
-
-                            return center_x, center_y, rec_text
-
-            logger.warning(f"未找到文本: {target_text}")
-            return None
-
-        except Exception as e:
-            logger.error(f"OCR处理异常: {e}")
-            return None
+        logger.warning(f"未找到文本: {target_text}")
+        return None
 
     def find_text_in_region(
-        self, target_text: str, region: Tuple[int, int, int, int], confidence: float = 0.5
+        self, target_text: str, region: Tuple[int, int, int, int], confidence: float = 0.5, use_regex: bool = False
     ) -> Optional[Tuple[int, int, str]]:
-        """在指定区域内查找文本"""
-        logger.info(f"在区域 {region} 中搜索文本: {target_text}")
+        pattern = re.compile(target_text) if use_regex else None
 
-        try:
-            # 截图
-            screenshot = self.device.capture()
-            if screenshot is None:
-                return None
+        ocr_results = self._perform_ocr(region=region, confidence=confidence)
 
-            # 裁剪指定区域
-            left, top, right, bottom = region
-            region_image = screenshot[top:bottom, left:right]
+        for item in ocr_results:
+            text = item["text"]
+            if (use_regex and pattern.search(text)) or (not use_regex and target_text in text):
+                x, y = item["center"]
+                logger.info(f"✅ 在区域内找到文本 '{text}'，坐标: ({x}, {y})")
+                return x, y, text
 
-            if region_image.size == 0:
-                logger.error("区域裁剪失败")
-                return None
+        return None
 
-            # 在裁剪后的区域进行OCR
-            det_results = self.model_det.predict(region_image, batch_size=1)
+    def process_texts(
+        self,
+        actions: List[TextAction],
+        confidence: float = 0.5,
+        stop_after_first: bool = False,
+        region: Tuple[int, int, int, int] = None,
+    ) -> List[Any]:
+        """
+        批量处理多个文本动作（支持正则），只OCR一次
+        """
+        if not actions:
+            return []
 
-            for res in det_results:
-                dt_polys = res.json["res"]["dt_polys"]
-                dt_scores = res.json["res"]["dt_scores"]
+        # 按优先级排序
+        sorted_actions = sorted(actions, key=lambda a: a.priority, reverse=True)
+        logger.info(f"批量处理动作: {[a.description for a in sorted_actions]}")
 
-                for i, score in enumerate(dt_scores):
-                    if score < confidence:
-                        continue
+        ocr_results = self._perform_ocr(region=region, confidence=confidence)
+        if not ocr_results:
+            logger.warning("OCR未识别到任何文本")
+            return []
 
-                    cropped = imgUtil.crop_by_polygon(region_image, dt_polys[i])
-                    if cropped.size == 0:
-                        continue
+        executed_results = []
+        remaining_actions = sorted_actions.copy()
 
-                    rec_results = self.model_rec.predict(cropped, batch_size=1)
-                    for rec in rec_results:
-                        rec_text = rec.json["res"]["rec_text"]
+        for item in ocr_results:
+            text = item["text"]
+            center_x, center_y = item["center"]
 
-                        if rec_text and target_text in rec_text:
-                            # 调整坐标到全屏坐标系
-                            bbox = imgUtil.get_bounding_box(dt_polys[i])
-                            abs_bbox = (
-                                bbox[0] + left,
-                                bbox[1] + top,
-                                bbox[2] + left,
-                                bbox[3] + top,
-                            )
-                            center_x, center_y = imgUtil.get_center(abs_bbox)
+            for action in remaining_actions[:]:
+                if action.matches(text):
+                    logger.info(f"✅ 匹配动作: '{action.description}' -> 文本 '{text}'")
 
-                            logger.info(f"✅ 在区域内找到文本 '{rec_text}'，坐标: ({center_x}, {center_y})")
-                            return center_x, center_y, rec_text
+                    result = action.action(center_x, center_y, text, self)
+                    executed_results.append(
+                        {"action": action.description, "text": text, "position": (center_x, center_y), "result": result}
+                    )
 
-            return None
+                    if action.once:
+                        remaining_actions.remove(action)
 
-        except Exception as e:
-            logger.error(f"区域OCR处理异常: {e}")
-            return None
+                    if stop_after_first:
+                        return [r["result"] for r in executed_results]
 
-    def click_text(self, target_text: str, confidence: float = 0.5) -> bool:
-        """查找并点击文本"""
-        result = self.find_text(target_text, confidence)
+        if not executed_results:
+            logger.warning("未匹配到任何动作")
+
+        return [r["result"] for r in executed_results]
+
+    def click_text(self, target_text: str, confidence: float = 0.5, use_regex: bool = False) -> bool:
+        result = self.find_text(target_text, confidence, use_regex)
         if result:
             x, y, text = result
             success = self.device.click(x, y)
-            if success:
-                logger.info(f"🖱️ 已点击: {text} ({x}, {y})")
-            else:
-                logger.error(f"点击失败: {text} ({x}, {y})")
+            logger.info(f"🖱️ {'成功' if success else '失败'}点击: {text} ({x}, {y})")
             return success
-
-        logger.warning(f"点击失败，未找到文本: {target_text}")
         return False
 
-    def click(self, x: int, y: int) -> bool:
-        return self.device.click(x, y)
-
-    def mouse_left_down(self, x: int, y: int) -> bool:
-        return self.device.click(x, y, "down")
-
-    def mouse_left_up(self, x: int, y: int) -> bool:
-        return self.device.click(x, y, "up")
-
-    def exist_text(self, target_text: str, confidence: float = 0.5) -> bool:
-        """检查文本是否存在"""
-        return self.find_text(target_text, confidence) is not None
+    def exist_text(self, target_text: str, confidence: float = 0.5, use_regex: bool = False) -> bool:
+        return self.find_text(target_text, confidence, use_regex) is not None
 
     def wait_for_text(
         self, target_text: str, timeout: int = 30, confidence: float = 0.5, interval: float = 1.0
@@ -218,6 +193,76 @@ class OCREngine:
 
         logger.error(f"等待文本超时: {target_text}")
         return None
+
+    @timeit    
+    def _perform_ocr(
+        self, screenshot: np.ndarray = None, region: Tuple[int, int, int, int] = None, confidence: float = 0.5
+    ):
+        """
+        核心OCR识别逻辑：返回所有识别到的文本及其位置
+        支持全屏或指定区域
+
+        Returns:
+            List[dict]: [{'text': str, 'center': (x, y), 'bbox': (x1,y1,x2,y2), 'score': float}, ...]
+        """
+        if screenshot is None:
+            screenshot = self.device.capture()
+            if screenshot is None:
+                logger.error("截图失败")
+                return []
+
+        # 如果指定区域，裁剪
+        if region:
+            left, top, right, bottom = region
+            screenshot = screenshot[top:bottom, left:right]
+            offset_x, offset_y = left, top
+        else:
+            offset_x, offset_y = 0, 0
+
+        try:
+            det_results = self.model_det.predict(screenshot, batch_size=1)
+            results = []
+
+            for res in det_results:
+                dt_polys = res.json["res"]["dt_polys"]
+                dt_scores = res.json["res"]["dt_scores"]
+
+                cropped_images = []
+                valid_indices = []
+                for i, score in enumerate(dt_scores):
+                    if score < confidence:
+                        continue
+                    cropped = imgUtil.crop_by_polygon(screenshot, dt_polys[i])
+                    if cropped.size == 0:
+                        continue
+                    cropped_images.append(cropped)
+                    valid_indices.append(i)
+
+                if not cropped_images:
+                    continue
+
+                rec_results = self.model_rec.predict(cropped_images, batch_size=len(cropped_images))
+
+                for idx, rec_batch in enumerate(rec_results):
+                    orig_i = valid_indices[idx]
+                    rec_text = rec_batch.json["res"]["rec_text"].strip()
+                    score = dt_scores[orig_i]
+
+                    if not rec_text:
+                        continue
+
+                    bbox = imgUtil.get_bounding_box(dt_polys[orig_i])
+                    abs_bbox = (bbox[0] + offset_x, bbox[1] + offset_y, bbox[2] + offset_x, bbox[3] + offset_y)
+                    center_x, center_y = imgUtil.get_center(abs_bbox)
+
+                    results.append({"text": rec_text, "center": (center_x, center_y), "bbox": abs_bbox, "score": score})
+
+            logger.debug(f"OCR识别到 {len(results)} 个文本区域. 文本 {results}")
+            return results
+
+        except Exception as e:
+            logger.error(f"_perform_ocr 异常: {e}")
+            return []
 
     def get_device_info(self) -> dict:
         """获取设备信息"""
@@ -269,3 +314,12 @@ class OCREngine:
         else:
             logger.error(f"滑动失败: ({x1}, {y1}) -> ({x2}, {y2})")
         return success
+
+    def click(self, x: int, y: int) -> bool:
+        return self.device.click(x, y)
+
+    def mouse_left_down(self, x: int, y: int) -> bool:
+        return self.device.click(x, y, "down")
+
+    def mouse_left_up(self, x: int, y: int) -> bool:
+        return self.device.click(x, y, "up")
