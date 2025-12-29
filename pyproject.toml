@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "gas"
-version = "v0.2.0"
+version = "v0.2.1"
 description = "基于PaddleOCR的游戏自动化工具"
 authors = [{ name = "Jian", email = "your.email@example.com" }]
 readme = "README.md"
@@ -40,7 +40,6 @@ dependencies = [
     "pytest>=8.4.2",
     "onnxruntime>=1.21.0",
     "onnx>=1.19.1",
-    "black>=25.9.0",
 ]
 
 [project.optional-dependencies]
@@ -68,3 +67,6 @@ python_classes = ["Test*"]
 python_functions = ["test_*"]
 addopts = "-v --tb=short"
 filterwarnings = ["ignore::DeprecationWarning"]
+
+[dependency-groups]
+dev = ["black>=25.12.0"]

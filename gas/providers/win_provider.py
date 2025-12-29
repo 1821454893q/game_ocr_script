@@ -20,6 +20,7 @@ from gas.util.hwnd_util import get_hwnd_by_class_and_title
 from gas.util.screenshot_util import screenshot, screenshot_bitblt
 
 from gas.logger import get_logger
+from gas.util.wrap_util import timeit
 
 logger = get_logger()
 
@@ -111,6 +112,7 @@ class WinProvider(IDeviceProvider):
 
     # ==================== 截图功能 ====================
 
+    @timeit
     def capture(self) -> Optional[np.ndarray]:
         """截图当前窗口"""
         if not self._hwnd:

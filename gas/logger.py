@@ -14,6 +14,6 @@ def get_logger() -> logging.Logger:
             log_dir=LOG_DIR,
             config_file=LOG_CONFIG_FILE,
             pyproject_file=PYPROJECT_FILE,
-            initial_level="WARNING",
+            initial_level="ERROR",
         )
     return _log_instance

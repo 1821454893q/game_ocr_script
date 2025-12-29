@@ -3,8 +3,12 @@ import time
 from gas.cons.key_code import KeyCode
 import gas.providers.win_provider as wm
 import gas.ocr_engine as ocr
+from gas.logger import get_logger
 import cv2
 import win32gui
+
+
+log = get_logger()
 
 
 def find_unique_values(arr1, arr2):
@@ -31,11 +35,11 @@ def find_unique_values(arr1, arr2):
 if __name__ == "__main__":
     # # 示例2: 使用ADB提供者
     # adb_path = r"D:\Program Files\Netease\MuMu Player 12\nx_device\12.0\shell\adb.exe"
-    # # ocr_adb = ocr.OCREngine.create_with_adb(adb_path, "127.0.0.1:16366")
-    ocr_adb = ocr.OCREngine.create_with_window("MuMuNxDevice", "Qt5156QWindowIcon", 2)
-    # ocr_adb = ocr.OCREngine.create_with_window("二重螺旋  ", "UnrealWindow", 2)
-    # ocr_adb.click_text("游戏")
-    import re
+    # ocr_engine = ocr.OCREngine.create_with_adb()
+    ocr_engine = ocr.OCREngine.create_with_window("MuMuNxDevice", "Qt5156QWindowIcon", 2)
+
+    if ocr_engine.is_ready() is False:
+        log.error("ocr引擎启动失败")
 
     actions = [
         ocr.TextAction("再次进行", lambda x, y, t, e: e.click(x, y)),
@@ -43,7 +47,5 @@ if __name__ == "__main__":
     ]
 
     while True:
-        ocr_adb.process_texts(actions, confidence=0.5)
+        ocr_engine.process_texts(actions, confidence=0.8)
         time.sleep(1)
-
-    pass

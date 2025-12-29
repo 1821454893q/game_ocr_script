@@ -65,7 +65,7 @@ class OCREngine:
         return self(provider)
 
     @classmethod
-    def create_with_adb(self, adb_path: str, device_id: str = None):
+    def create_with_adb(self, adb_path: Optional[str] = None, device_id: Optional[str | int] = None):
         """创建使用ADB提供者的OCR引擎"""
         provider = ADBProvider(adb_path, device_id)
         return self(provider)
@@ -194,7 +194,7 @@ class OCREngine:
         logger.error(f"等待文本超时: {target_text}")
         return None
 
-    @timeit    
+    @timeit
     def _perform_ocr(
         self, screenshot: np.ndarray = None, region: Tuple[int, int, int, int] = None, confidence: float = 0.5
     ):
