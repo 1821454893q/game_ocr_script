@@ -29,9 +29,7 @@ def is_admin():
 
 
 class WindowsBalloonTip:
-    def __init__(
-        self, title, msg, timeout, icon_path, class_name="WWA_NotifyWindow", tooltip_text="WWA"
-    ):
+    def __init__(self, title, msg, timeout, icon_path, class_name="WWA_NotifyWindow", tooltip_text="WWA"):
         message_map = {
             win32con.WM_DESTROY: self.on_destroy,
         }

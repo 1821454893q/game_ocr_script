@@ -5,12 +5,11 @@ from typing import List, Tuple, Optional, Callable, Any, Union, Pattern
 import cv2
 import re
 import numpy as np
-from paddleocr import TextRecognition
+from rapidocr import RapidOCR  # 明确使用 onnxruntime 版（推荐）
 
 from gas.interfaces.interfaces import IDeviceProvider
 from gas.cons.key_code import KeyCode
 from gas.providers.adb_provider import ADBProvider
-from gas.relative_recorder import PynputClickRecorder
 
 from gas.logger import get_logger
 from gas.providers.win_provider import WinProvider
@@ -42,6 +41,16 @@ class TextAction:
         return bool(self.compiled.search(text))
 
 
+# OCR结果的对象封装
+@dataclass(frozen=True)
+class OCRItem:
+    text: str
+    center: Tuple[int, int]
+    bbox: Tuple[int, int, int, int]  # (x1, y1, x2, y2) axis-aligned
+    score: float
+
+
+@dataclass
 class OCREngine:
     """OCR引擎 - 专注于OCR逻辑"""
 
@@ -49,11 +58,14 @@ class OCREngine:
         # 设备提供者
         self.device = device_provider
 
-        # 初始化OCR模型
-        self.model_det = TextRecognition(model_name="PP-OCRv5_mobile_det")
-        self.model_rec = TextRecognition(model_name="PP-OCRv5_mobile_rec")
+        # 初始化RapidOCR
+        self.rapid_ocr = RapidOCR()
 
-        logger.info("OCR引擎初始化完成")
+        # 预热
+        dummy_img = np.zeros((100, 100, 3), dtype=np.uint8)
+        _ = self.rapid_ocr(dummy_img)
+
+        logger.info("OCR引擎初始化完成（RapidOCR ONNX版）")
 
     @classmethod
     def create_with_window(
@@ -61,7 +73,6 @@ class OCREngine:
     ):
         """创建使用窗口提供者的OCR引擎"""
         provider = WinProvider(window_title, class_name, capture_mode, activate_windows)
-
         return self(provider)
 
     @classmethod
@@ -84,12 +95,12 @@ class OCREngine:
     ) -> Optional[Tuple[int, int, str]]:
         pattern = re.compile(target_text) if use_regex else None
 
-        ocr_results = self._perform_ocr(confidence=confidence)
+        ocr_results: List[OCRItem] = self._perform_ocr(confidence=confidence)
 
         for item in ocr_results:
-            text = item["text"]
+            text = item.text
             if (use_regex and pattern.search(text)) or (not use_regex and target_text in text):
-                x, y = item["center"]
+                x, y = item.center
                 logger.info(f"✅ 找到文本 '{text}' (目标: {target_text})，坐标: ({x}, {y})")
                 return x, y, text
 
@@ -101,12 +112,12 @@ class OCREngine:
     ) -> Optional[Tuple[int, int, str]]:
         pattern = re.compile(target_text) if use_regex else None
 
-        ocr_results = self._perform_ocr(region=region, confidence=confidence)
+        ocr_results: List[OCRItem] = self._perform_ocr(region=region, confidence=confidence)
 
         for item in ocr_results:
-            text = item["text"]
+            text = item.text
             if (use_regex and pattern.search(text)) or (not use_regex and target_text in text):
-                x, y = item["center"]
+                x, y = item.center
                 logger.info(f"✅ 在区域内找到文本 '{text}'，坐标: ({x}, {y})")
                 return x, y, text
 
@@ -129,7 +140,7 @@ class OCREngine:
         sorted_actions = sorted(actions, key=lambda a: a.priority, reverse=True)
         logger.info(f"批量处理动作: {[a.description for a in sorted_actions]}")
 
-        ocr_results = self._perform_ocr(region=region, confidence=confidence)
+        ocr_results: List[OCRItem] = self._perform_ocr(region=region, confidence=confidence)
         if not ocr_results:
             logger.warning("OCR未识别到任何文本")
             return []
@@ -138,8 +149,8 @@ class OCREngine:
         remaining_actions = sorted_actions.copy()
 
         for item in ocr_results:
-            text = item["text"]
-            center_x, center_y = item["center"]
+            text = item.text
+            center_x, center_y = item.center
 
             for action in remaining_actions[:]:
                 if action.matches(text):
@@ -197,13 +208,13 @@ class OCREngine:
     @timeit
     def _perform_ocr(
         self, screenshot: np.ndarray = None, region: Tuple[int, int, int, int] = None, confidence: float = 0.5
-    ):
+    ) -> List[OCRItem]:
         """
         核心OCR识别逻辑：返回所有识别到的文本及其位置
         支持全屏或指定区域
 
         Returns:
-            List[dict]: [{'text': str, 'center': (x, y), 'bbox': (x1,y1,x2,y2), 'score': float}, ...]
+            List[OCRItem]: 每个元素支持 .text, .center, .bbox, .score 属性访问
         """
         if screenshot is None:
             screenshot = self.device.capture()
@@ -220,50 +231,42 @@ class OCREngine:
             offset_x, offset_y = 0, 0
 
         try:
-            det_results = self.model_det.predict(screenshot, batch_size=1)
-            results = []
+            # RapidOCR 返回 RapidOCROutput 对象（非 iterable）
+            ocr_result = self.rapid_ocr(screenshot)
 
-            for res in det_results:
-                dt_polys = res.json["res"]["dt_polys"]
-                dt_scores = res.json["res"]["dt_scores"]
+            if ocr_result is None or not ocr_result.txts:
+                logger.debug("OCR未识别到任何文本")
+                return []
 
-                cropped_images = []
-                valid_indices = []
-                for i, score in enumerate(dt_scores):
-                    if score < confidence:
-                        continue
-                    cropped = imgUtil.crop_by_polygon(screenshot, dt_polys[i])
-                    if cropped.size == 0:
-                        continue
-                    cropped_images.append(cropped)
-                    valid_indices.append(i)
+            ocr_items: List[OCRItem] = []
 
-                if not cropped_images:
+            # 正确迭代：txts、scores、boxes 长度一致
+            for text, score, bbox_points in zip(ocr_result.txts, ocr_result.scores, ocr_result.boxes):
+                text = text.strip()
+                if score < confidence or not text:
                     continue
 
-                rec_results = self.model_rec.predict(cropped_images, batch_size=len(cropped_images))
+                # 计算 axis-aligned bbox 和 center
+                xs = [p[0] for p in bbox_points]
+                ys = [p[1] for p in bbox_points]
+                x1, x2 = int(min(xs)), int(max(xs))
+                y1, y2 = int(min(ys)), int(max(ys))
 
-                for idx, rec_batch in enumerate(rec_results):
-                    orig_i = valid_indices[idx]
-                    rec_text = rec_batch.json["res"]["rec_text"].strip()
-                    score = dt_scores[orig_i]
+                # 加上区域偏移
+                abs_bbox = (x1 + offset_x, y1 + offset_y, x2 + offset_x, y2 + offset_y)
+                center = ((x1 + x2) // 2 + offset_x, (y1 + y2) // 2 + offset_y)
 
-                    if not rec_text:
-                        continue
+                ocr_items.append(OCRItem(text=text, center=center, bbox=abs_bbox, score=score))
 
-                    bbox = imgUtil.get_bounding_box(dt_polys[orig_i])
-                    abs_bbox = (bbox[0] + offset_x, bbox[1] + offset_y, bbox[2] + offset_x, bbox[3] + offset_y)
-                    center_x, center_y = imgUtil.get_center(abs_bbox)
-
-                    results.append({"text": rec_text, "center": (center_x, center_y), "bbox": abs_bbox, "score": score})
-
-            logger.debug(f"OCR识别到 {len(results)} 个文本区域. 文本 {results}")
-            return results
+            # logger.debug(f"识别结果: {ocr_items}")
+            logger.debug(f"OCR识别到 {len(ocr_items)} 个文本区域")
+            return ocr_items
 
         except Exception as e:
             logger.error(f"_perform_ocr 异常: {e}")
             return []
 
+    # 以下方法保持不变...
     def get_device_info(self) -> dict:
         """获取设备信息"""
         if self.device:

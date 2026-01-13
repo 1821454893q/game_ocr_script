@@ -113,9 +113,7 @@ def create_img_path(prefix="screenshot") -> str:
     temp_screenshot.mkdir(exist_ok=True, parents=True)
     tst = time.time()
     tst_int = int(tst)
-    filename = (
-        f"{prefix}_{tst_int}_{int((tst - tst_int) * 10000):04d}{random.randint(1000, 9999)}.png"
-    )
+    filename = f"{prefix}_{tst_int}_{int((tst - tst_int) * 10000):04d}{random.randint(1000, 9999)}.png"
     img_abspath = str(temp_screenshot.joinpath(filename))
     logger.debug("Generate image path: %s", img_abspath)
     return img_abspath

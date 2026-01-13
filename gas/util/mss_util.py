@@ -13,9 +13,7 @@ def create_mss() -> MSSBase:
     return mss.mss()
 
 
-def screenshot(
-    sct: MSSBase, monitor: Monitor | tuple[int, int, int, int] | None = None
-) -> np.ndarray:
+def screenshot(sct: MSSBase, monitor: Monitor | tuple[int, int, int, int] | None = None) -> np.ndarray:
     if not isinstance(sct, MSSBase):
         raise ValueError("参数异常")
     if monitor is None:

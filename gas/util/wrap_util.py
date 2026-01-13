@@ -1,16 +1,16 @@
 import functools
+from logging import Logger
 import time
 
 from gas.logger import get_logger
-
-logger = get_logger()
 
 # 记录每个函数的调用数据
 _func_stats = {}
 
 
-def timeit(_func=None, *, ignore: int = 0):
+def timeit(_func=None, *, log: Logger = None, ignore: int = 0):
     """耗时计时器，分别计算每个函数的平均耗时（跳过前 ignore 次调用）"""
+    log = log or get_logger()
 
     def decorator_timeit(func):
         @functools.wraps(func)
@@ -31,13 +31,11 @@ def timeit(_func=None, *, ignore: int = 0):
             if stats["count"] > ignore:
                 stats["total_time"] += elapsed_time
                 avg_time = stats["total_time"] / (stats["count"] - ignore)
-                logger.debug(
+                log.debug(
                     f"{func.__name__} 耗时: {elapsed_time:.6f} 秒, 第 {stats['count']} 次调用平均耗时: {avg_time:.6f} 秒"
                 )
             else:
-                logger.debug(
-                    f"{func.__name__} 耗时: {elapsed_time:.6f} 秒 (第{stats['count']}次不计入平均值)"
-                )
+                log.debug(f"{func.__name__} 耗时: {elapsed_time:.6f} 秒 (第{stats['count']}次不计入平均值)")
             return result
 
         return wrapper

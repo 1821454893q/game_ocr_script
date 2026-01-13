@@ -162,9 +162,7 @@ def resize_by_ratio(img: np.ndarray, ratio: float) -> np.ndarray:
     return img_new
 
 
-def match_template(
-    img: np.ndarray, template_img: np.ndarray
-) -> tuple[float, tuple[int, int, int, int]]:
+def match_template(img: np.ndarray, template_img: np.ndarray) -> tuple[float, tuple[int, int, int, int]]:
     """
     模板匹配（灰度）
     :param img:
@@ -192,9 +190,7 @@ def match_template(
     return confidence_max_position
 
 
-def draw_match_template_result(
-    img: np.ndarray, position: tuple[float, tuple[int, int, int, int]]
-) -> np.ndarray:
+def draw_match_template_result(img: np.ndarray, position: tuple[float, tuple[int, int, int, int]]) -> np.ndarray:
     """在图片上绘制匹配区域方框和匹配得分"""
     max_val, (x1, y1, x2, y2) = position
     # 画出匹配区域

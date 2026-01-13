@@ -1,11 +1,11 @@
 # gas - 基于OCR的自动化工具库
 
-基于PaddleOCR的跨平台自动化工具库，支持Windows窗口和Android设备（通过ADB）的OCR文字识别和自动化操作。
+基于OCR的跨平台自动化工具库，支持Windows窗口和Android设备（通过ADB）的OCR文字识别和自动化操作。
 
 ## 功能特性
 
 - **多平台支持**: 支持Windows窗口操作和Android设备（通过ADB）
-- **OCR文字识别**: 基于PaddleOCR PP-OCRv5模型进行文字识别
+- **OCR文字识别**: 基于OCR模型进行文字识别
 - **后台操作**: 支持窗口后台截图和操作，无需前置窗口
 - **灵活的文本匹配**: 支持精确匹配、正则表达式匹配
 - **批量处理**: 支持同时处理多个文本动作
@@ -27,20 +27,6 @@ pip install gas
 
 ```bash
 pip install -r requirements.txt
-```
-
-### PaddlePaddle安装
-
-根据您的环境选择安装方式：
-
-**CPU版本：**
-```bash
-python -m pip install paddlepaddle==3.2.0 -i https://www.paddlepaddle.org.cn/packages/stable/cpu/
-```
-
-**GPU版本（CUDA 11.8）：**
-```bash
-python -m pip install paddlepaddle-gpu==3.2.0 -i https://www.paddlepaddle.org.cn/packages/stable/cu118/
 ```
 
 ## 快速开始

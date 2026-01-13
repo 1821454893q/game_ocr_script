@@ -6,7 +6,7 @@ with open("README.md", "r", encoding="utf-8") as fh:
 
 setup(
     name="gas",
-    version="1.0.0",
+    version="v0.2.0",
     author="Jian",
     author_email="your.email@example.com",
     description="基于PaddleOCR的游戏自动化工具",

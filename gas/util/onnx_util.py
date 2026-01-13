@@ -62,36 +62,36 @@ class YOLOONNXDetector:
 
         log.debug(f"Loaded {len(self.class_names)} classes, {self.class_names}")
 
-    def get_class_names(self)->Optional[List[str]]:
+    def get_class_names(self) -> Optional[List[str]]:
         return self.class_names
 
     # 尝试从onnx模型中获取分类名称
-    def _load_classname(self, model_path: str)->List[str]:
+    def _load_classname(self, model_path: str) -> List[str]:
         """从ONNX模型文件中提取类别名称"""
         try:
             onnx_model = onnx.load(model_path)
             class_names = []
-            
+
             # 检查元数据
             for prop in onnx_model.metadata_props:
-                if prop.key in ['names', 'classes', 'class_names']:
+                if prop.key in ["names", "classes", "class_names"]:
                     names_str = prop.value
                     # 解析类别字符串
                     class_names = self._parse_class_names(names_str)
                     if class_names:
                         return class_names
-            
+
             # 如果元数据中没有，返回空字典
         except Exception as e:
             log.error(f"获取类名失败! {e}")
 
         return []
-    
-    def _parse_class_names(self, names_str)->List[str]:
+
+    def _parse_class_names(self, names_str) -> List[str]:
         """解析类别名称字符串"""
         if not names_str:
             return []
-            
+
         try:
             parsed = ast.literal_eval(names_str)
             return [parsed[value] for value in parsed]
@@ -108,8 +108,6 @@ class YOLOONNXDetector:
         except json.JSONDecodeError:
             log.error(f"json类别解析失败! 元数据{names_str}")
 
-
-        
         return []
 
     # ==================== 正确的 Letterbox 预处理 ====================
@@ -300,7 +298,7 @@ class YOLOONNXDetector:
             color = colors[det["class_id"] % len(colors)]
 
             try:
-                name = self.class_names[int (det["class_id"])]
+                name = self.class_names[int(det["class_id"])]
             except Exception as e:
                 log.error(e)
                 pass
