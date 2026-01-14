@@ -40,9 +40,7 @@ class IInputProvider(ABC):
         pass
 
     @abstractmethod
-    def swipe(
-        self, x1: int, y1: int, x2: int, y2: int, is_drag: bool = True, duration: float = 0.1
-    ) -> bool:
+    def swipe(self, x1: int, y1: int, x2: int, y2: int, is_drag: bool = True, duration: float = 0.1) -> bool:
         """滑动"""
         pass
 
@@ -57,6 +55,15 @@ class IInputProvider(ABC):
         Args:
             keycode: 按键代码
             action: 动作类型 - "tap"(点击), "down"(按下), "up"(抬起)
+        """
+        pass
+
+    @abstractmethod
+    def mouse_action(self, x: int, y: int, action: str = "move", delay: float = 0.01) -> bool:
+        """
+        低级鼠标操作
+        action: "move"(纯移动), "drag"(拖拽移动), "down"(按下), "up"(抬起)
+        delay: 操作后延迟（秒），默认很小
         """
         pass
 

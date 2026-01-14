@@ -262,6 +262,26 @@ class WinProvider(IDeviceProvider):
                     pass
             return False
 
+    def mouse_action(self, x: int, y: int, action: str = "move", delay: float = 0.01) -> bool:
+        """
+        低级鼠标操作 - 直接调用 KeyMouseUtil
+        """
+        try:
+            if not self._hwnd:
+                logger.error("未设置目标窗口")
+                return False
+
+            if self.activate_windows:
+                KeyMouseUtil.window_activate(self._hwnd)
+
+            KeyMouseUtil.mouse_action(self._hwnd, x, y, action, delay)
+            logger.debug(f"鼠标操作: {action} at ({x}, {y}) delay={delay}")
+            return True
+
+        except Exception as e:
+            logger.error(f"鼠标操作失败 {action} ({x},{y}): {e}")
+            return False
+
     def input_text(self, text: str) -> bool:
         """输入文本"""
         pass

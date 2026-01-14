@@ -33,6 +33,10 @@ class OperationPlayer:
         self.screen_height: int = 1080
         self.config = ReplayConfig()
 
+        self.last_x: Optional[int] = None
+        self.last_y: Optional[int] = None
+        self.is_pressed: bool = False
+
     def load_from_recorder(self, recorder: OperationRecorder):
         """从录制器直接加载操作"""
         self.operations = recorder.get_operations()
@@ -82,6 +86,12 @@ class OperationPlayer:
         cfg = config or self.config
 
         logger.info(f"开始回放，共 {len(self.operations)} 个操作 | 速度: {cfg.speed}x | 起始延迟: {cfg.start_delay}s")
+
+        # 重置回放状态
+        self.is_pressed = False
+        self.last_x = None
+        self.last_y = None
+
         time.sleep(cfg.start_delay)
 
         last_timestamp = 0.0
@@ -117,35 +127,40 @@ class OperationPlayer:
         """执行单个录制操作，返回是否成功"""
         try:
             if op.type == "mouse":
-                if op.mouse_action == "click":
-                    x = self._denormalize_x(op.pos_x)
-                    y = self._denormalize_y(op.pos_y)
+                x = self._denormalize_x(op.pos_x)
+                y = self._denormalize_y(op.pos_y)
 
+                success = True
+
+                if op.mouse_action == "move":
+                    # 拖拽中用 drag，否则用 move
+                    action_type = "drag" if self.is_pressed else "move"
+                    success = self.device.mouse_action(x, y, action_type, 0.005)  # delay 调小更流畅
+                    logger.debug(f"鼠标{'拖拽' if self.is_pressed else '移动'}到: ({x}, {y})")
+
+                elif op.mouse_action == "click":
                     if op.mouse_event == "down":
-                        success = self.device.click(x, y, action="down")
-                        logger.debug(f"鼠标按下: ({x}, {y}) button={op.mouse_button}")
+                        # down 前确保位置（虽然 move 已覆盖，但保险）
+                        self.device.mouse_action(x, y, "move", 0.005)
+                        success = self.device.mouse_action(x, y, "down", 0.02)
+                        logger.debug(f"鼠标按下: ({x}, {y})")
+                        self.is_pressed = True
+
                     elif op.mouse_event == "up":
-                        success = self.device.click(x, y, action="up")
-                        logger.debug(f"鼠标抬起: ({x}, {y}) button={op.mouse_button}")
-                    else:  # tap
-                        success = self.device.click(x, y)
-                        logger.debug(f"鼠标点击: ({x}, {y}) button={op.mouse_button}")
-
-                    return success
-
-                elif op.mouse_action == "move":
-                    x = self._denormalize_x(op.pos_x)
-                    y = self._denormalize_y(op.pos_y)
-                    logger.debug(f"鼠标移动: ({x}, {y})")
-                    # 大多数 provider 不支持纯 move，可选择忽略或用微小 swipe 模拟
-                    return True
+                        # up 前如果在拖拽，确保最后一段是 drag
+                        if self.is_pressed:
+                            self.device.mouse_action(x, y, "drag", 0.005)
+                        success = self.device.mouse_action(x, y, "up", 0.02)
+                        logger.debug(f"鼠标抬起: ({x}, {y})")
+                        self.is_pressed = False
 
                 elif op.mouse_action == "scroll":
-                    x = self._denormalize_x(op.pos_x)
-                    y = self._denormalize_y(op.pos_y)
-                    logger.debug(f"鼠标滚轮: delta={op.scroll} at ({x}, {y})")
-                    # 暂不实现滚动（Windows/ADB 支持有限）
+                    logger.debug(f"鼠标滚轮: delta={op.scroll} at ({x}, {y})（暂未实现）")
                     return True
+
+                self.last_x = x
+                self.last_y = y
+                return success
 
             elif op.type == "keyboard":
                 logger.debug(f"键盘事件: {op.key} {op.key_event}")

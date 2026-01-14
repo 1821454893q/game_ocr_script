@@ -46,6 +46,5 @@ if __name__ == "__main__":
         ocr.TextAction("开始挑战", lambda x, y, t, e: e.click(x, y)),
     ]
 
-    while True:
-        ocr_engine.process_texts(actions, confidence=0.8)
-        time.sleep(1)
+    # ocr_engine.process_texts(actions, confidence=0.8)
+    ocr_engine.swipe(720, 250, 250, 250)

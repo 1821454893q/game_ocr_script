@@ -5,7 +5,7 @@ from typing import List, Tuple, Optional, Callable, Any, Union, Pattern
 import cv2
 import re
 import numpy as np
-from rapidocr import RapidOCR  # 明确使用 onnxruntime 版（推荐）
+from rapidocr import RapidOCR, EngineType, LangDet, LangRec, ModelType, OCRVersion
 
 from gas.interfaces.interfaces import IDeviceProvider
 from gas.cons.key_code import KeyCode
@@ -59,7 +59,24 @@ class OCREngine:
         self.device = device_provider
 
         # 初始化RapidOCR
-        self.rapid_ocr = RapidOCR()
+        self.rapid_ocr = RapidOCR(
+            params={
+                "Det.engine_type": EngineType.ONNXRUNTIME,
+                "Det.lang_type": LangDet.CH,
+                "Det.model_type": ModelType.MOBILE,
+                "Det.ocr_version": OCRVersion.PPOCRV4,
+
+                "Rec.engine_type": EngineType.ONNXRUNTIME,
+                "Rec.lang_type": LangRec.CH,
+                "Rec.model_type": ModelType.MOBILE,
+                "Rec.ocr_version": OCRVersion.PPOCRV5,
+                
+                "Cls.engine_type": EngineType.ONNXRUNTIME,
+                "Cls.lang_type": LangDet.CH,
+                "Cls.model_type": ModelType.MOBILE,
+                "Cls.ocr_version": OCRVersion.PPOCRV4,
+            }
+        )
 
         # 预热
         dummy_img = np.zeros((100, 100, 3), dtype=np.uint8)

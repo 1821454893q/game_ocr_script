@@ -4,6 +4,7 @@ import platform
 import subprocess
 import shutil
 import os
+import time
 from typing import Optional, Tuple, List, Dict, Any
 import cv2
 import numpy as np
@@ -142,6 +143,13 @@ class ADBProvider(IDeviceProvider):
         self.device_id: Optional[str] = None
         self._screen_size: Optional[Tuple[int, int]] = None
 
+        # 用于模拟拖拽的内部状态（链式短 swipe）
+        self.is_pressed: bool = False
+        self.down_x: Optional[int] = None
+        self.down_y: Optional[int] = None
+        self.last_x: Optional[int] = None
+        self.last_y: Optional[int] = None
+
         devices = self._list_devices()
         if not devices:
             raise RuntimeError("未检测到任何在线设备")
@@ -244,6 +252,66 @@ class ADBProvider(IDeviceProvider):
             result = self._run_adb(["shell", "input", "swipe", str(x1), str(y1), str(x2), str(y2), str(ms)])
             return result.returncode == 0
         except Exception:
+            return False
+
+    def mouse_action(self, x: int, y: int, action: str = "move", delay: float = 0.01) -> bool:
+        """
+        ADB 低级鼠标操作实现
+        """
+        time.sleep(delay)
+
+        try:
+            success = True
+
+            if action == "down":
+                # 对于ADB，按下时需要立即执行一个极短的swipe来模拟按下
+                self.is_pressed = True
+                self.down_x = x
+                self.down_y = y
+                self.last_x = x
+                self.last_y = y
+
+                # 执行一个极短的swipe来模拟按下（从x,y到x+1,y+1，持续0.01秒）
+                # 这样后续的移动才会被识别为拖拽
+                success = self.swipe(x, y, x + 1, y + 1, duration=0.01)
+
+            elif action == "up":
+                if self.is_pressed:
+                    if self.down_x is not None and self.down_y is not None:
+                        # 如果是点击（按下和抬起在同一位置）
+                        if abs(x - self.down_x) < 5 and abs(y - self.down_y) < 5:
+                            # 纯点击：执行tap
+                            success = self.click(x, y)
+                        else:
+                            # 拖拽结束：最后一段短swipe
+                            if self.last_x is not None and self.last_y is not None:
+                                success = self.swipe(self.last_x, self.last_y, x, y, duration=0.03)
+                # 重置状态
+                self.is_pressed = False
+                self.down_x = None
+                self.down_y = None
+                self.last_x = x
+                self.last_y = y
+
+            elif action in ("move", "drag"):
+                # 如果处于按下状态，执行拖拽
+                if self.is_pressed and self.last_x is not None and self.last_y is not None:
+                    # 计算移动距离，动态调整持续时间
+                    distance = ((x - self.last_x) ** 2 + (y - self.last_y) ** 2) ** 0.5
+                    duration = max(0.01, min(0.05, distance * 0.001))  # 根据距离调整
+                    success = self.swipe(self.last_x, self.last_y, x, y, duration=duration)
+
+                self.last_x = x
+                self.last_y = y
+
+            return success
+
+        except Exception as e:
+            logger.error(f"ADB mouse_action 失败 {action} ({x},{y}): {e}")
+            # 异常时强制重置，防止状态卡住
+            self.is_pressed = False
+            self.down_x = None
+            self.down_y = None
             return False
 
     def input_text(self, text: str) -> bool:
